@@ -10,6 +10,7 @@ plonky2 = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227
 plonky2_util = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
 plonky2_field = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
 plonky2_u32 = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
+plonky2_ecdsa = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
 num = { version = "0.4", default-features = false, features = ["alloc", "rand"] }
 itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }

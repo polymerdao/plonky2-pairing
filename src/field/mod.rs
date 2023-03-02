@@ -1,3 +1,3 @@
-mod bn128_base;
-mod bn128_scalar;
+pub mod bn128_base;
+pub mod bn128_scalar;
 mod field_testing;
