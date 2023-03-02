@@ -1,6 +1,6 @@
-mod gadgets;
-mod field;
 mod curve;
+mod field;
+mod gadgets;
 
 fn main() {
     println!("Hello, world!");
