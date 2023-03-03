@@ -7,7 +7,6 @@ use num::traits::Pow;
 use serde::{Deserialize, Serialize};
 
 use plonky2_field::extension::{Extendable, FieldExtension, Frobenius, OEF};
-use plonky2_field::ops::Square;
 use plonky2_field::types::{Field, Sample};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -167,8 +166,8 @@ impl<F: Extendable<12>> Field for DodecicExtension<F> {
         // g = a^r is in the base field, so only compute that
         // coefficient rather than the full product. The equation is
         // extracted from Mul::mul(...) below.
-        let Self([a0, a1, a2, a3, a4]) = *self;
-        let Self([b0, b1, b2, b3, b4]) = f;
+        let Self([a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]) = *self;
+        let Self([b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10n, b11]) = f;
         let g = a0 * b0 + <Self as OEF<12>>::W * (a1 * b4 + a2 * b3 + a3 * b2 + a4 * b1);
 
         Some(FieldExtension::<12>::scalar_mul(&f, g.inverse()))
@@ -292,9 +291,9 @@ impl<F: Extendable<12>> Mul for DodecicExtension<F> {
     type Output = Self;
 
     #[inline]
-    default fn mul(self, rhs: Self) -> Self {
-        let Self([a0, a1, a2, a3, a4]) = self;
-        let Self([b0, b1, b2, b3, b4]) = rhs;
+    fn mul(self, rhs: Self) -> Self {
+        let Self([a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]) = self;
+        let Self([b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10n, b11]) = rhs;
         let w = <Self as OEF<12>>::W;
 
         let c0 = a0 * b0 + w * (a1 * b4 + a2 * b3 + a3 * b2 + a4 * b1);
@@ -311,25 +310,6 @@ impl<F: Extendable<12>> MulAssign for DodecicExtension<F> {
     #[inline]
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
-    }
-}
-
-impl<F: Extendable<12>> Square for DodecicExtension<F> {
-    #[inline(always)]
-    fn square(&self) -> Self {
-        let Self([a0, a1, a2, a3, a4]) = *self;
-        let w = <Self as OEF<12>>::W;
-        let double_w = <Self as OEF<12>>::W.double();
-
-        let c0 = a0.square() + double_w * (a1 * a4 + a2 * a3);
-        let double_a0 = a0.double();
-        let c1 = double_a0 * a1 + double_w * a2 * a4 + w * a3 * a3;
-        let c2 = double_a0 * a2 + a1 * a1 + double_w * a4 * a3;
-        let double_a1 = a1.double();
-        let c3 = double_a0 * a3 + double_a1 * a2 + w * a4 * a4;
-        let c4 = double_a0 * a4 + double_a1 * a3 + a2 * a2;
-
-        Self([c0, c1, c2, c3, c4, c0, c1, c2, c3, c4, c0, c1])
     }
 }
 
@@ -359,10 +339,10 @@ mod tests {
     mod goldilocks {
         use crate::{test_field_arithmetic, test_field_extension};
 
-        test_field_extension!(crate::goldilocks_field::GoldilocksField, 12);
+        test_field_extension!(crate::field::bn128_base::Bn128Base, 12);
         test_field_arithmetic!(
-            crate::extension::Dodecic::DodecicExtension<
-                crate::goldilocks_field::GoldilocksField,
+            crate::field::extension::dodecic::DodecicExtension<
+                crate::field::bn128_base::Bn128Base,
             >
         );
     }
