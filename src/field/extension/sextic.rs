@@ -51,8 +51,8 @@ impl<F: Extendable<6>> From<F> for SexticExtension<F> {
 impl<F: Extendable<6>> Sample for SexticExtension<F> {
     #[inline]
     fn sample<R>(rng: &mut R) -> Self
-        where
-            R: rand::RngCore + ?Sized,
+    where
+        R: rand::RngCore + ?Sized,
     {
         Self::from_basefield_array([
             F::sample(rng),
@@ -81,10 +81,10 @@ impl<F: Extendable<6>> Field for SexticExtension<F> {
     const MULTIPLICATIVE_GROUP_GENERATOR: Self = Self(F::EXT_MULTIPLICATIVE_GROUP_GENERATOR);
     const POWER_OF_TWO_GENERATOR: Self = Self(F::EXT_POWER_OF_TWO_GENERATOR);
 
-    const BITS: usize = F::BITS * 4;
+    const BITS: usize = F::BITS * 6;
 
     fn order() -> BigUint {
-        F::order().pow(4u32)
+        F::order().pow(6u32)
     }
     fn characteristic() -> BigUint {
         F::characteristic()
@@ -99,7 +99,8 @@ impl<F: Extendable<6>> Field for SexticExtension<F> {
         let a_pow_p = self.frobenius();
         let a_pow_p_plus_1 = a_pow_p * *self;
         let a_pow_p3_plus_p2 = a_pow_p_plus_1.repeated_frobenius(2);
-        let a_pow_r_minus_1 = a_pow_p3_plus_p2 * a_pow_p;
+        let a_pow_p5_plus_p4 = a_pow_p3_plus_p2.repeated_frobenius(2);
+        let a_pow_r_minus_1 = a_pow_p5_plus_p4 * a_pow_p3_plus_p2 * a_pow_p;
         let a_pow_r = a_pow_r_minus_1 * *self;
         debug_assert!(FieldExtension::<6>::is_in_basefield(&a_pow_r));
 
@@ -143,7 +144,9 @@ impl<F: Extendable<6>> Neg for SexticExtension<F> {
 
     #[inline]
     fn neg(self) -> Self {
-        Self([-self.0[0], -self.0[1], -self.0[2], -self.0[3], -self.0[4], -self.0[5]])
+        Self([
+            -self.0[0], -self.0[1], -self.0[2], -self.0[3], -self.0[4], -self.0[5],
+        ])
     }
 }
 
@@ -206,12 +209,14 @@ impl<F: Extendable<6>> Mul for SexticExtension<F> {
         let Self([a0, a1, a2, a3, a4, a5]) = self;
         let Self([b0, b1, b2, b3, b4, b5]) = rhs;
 
-        let c0 = a0 * b0 + <Self as OEF<6>>::W * (a1 * b3 + a2 * b2 + a3 * b1);
-        let c1 = a0 * b1 + a1 * b0 + <Self as OEF<6>>::W * (a2 * b3 + a3 * b2);
-        let c2 = a0 * b2 + a1 * b1 + a2 * b0 + <Self as OEF<6>>::W * a3 * b3;
-        let c3 = a0 * b3 + a1 * b2 + a2 * b1 + a3 * b0;
+        let c0 = a0 * b0 + <Self as OEF<6>>::W * (a1 * b5 + a2 * b4 + a3 * b3 + a4 * b2 + a5 * b1);
+        let c1 = a0 * b1 + a1 * b0 + <Self as OEF<6>>::W * (a2 * b5 + a3 * b4 + a4 * b3 + a5 * b2);
+        let c2 = a0 * b2 + a1 * b1 + a2 * b0 + <Self as OEF<6>>::W * (a3 * b5 + a4 * b4 + a5 * b3);
+        let c3 = a0 * b3 + a1 * b2 + a2 * b1 + a3 * b0 + <Self as OEF<6>>::W * (a4 * b5 + a5 * b4);
+        let c4 = a0 * b4 + a1 * b3 + a2 * b2 + a3 * b1 + a4 * b0 + <Self as OEF<6>>::W * a5 * b5;
+        let c5 = a0 * b5 + a1 * b4 + a2 * b3 + a3 * b2 + a4 * b1 + a5 * b0;
 
-        Self([c0, c1, c2, c3, c0, c1])
+        Self([c0, c1, c2, c3, c4, c5])
     }
 }
 
@@ -250,7 +255,7 @@ mod tests {
 
         test_field_extension!(crate::field::bn128_base::Bn128Base, 6);
         test_field_arithmetic!(
-            crate::extension::quartic::SexticExtension<
+            crate::field::extension::sextic::SexticExtension<
                 crate::field::bn128_base::Bn128Base,
             >
         );

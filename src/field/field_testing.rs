@@ -112,6 +112,7 @@ pub(crate) fn test_add_neg_sub_mul<BF: Extendable<D>, const D: usize>() {
     assert_eq!(x + (-x), BF::Extension::ZERO);
     assert_eq!(-x, BF::Extension::ZERO - x);
     assert_eq!(x + x, x * BF::Extension::TWO);
+    assert_eq!(x + x + x, x * (BF::Extension::ONE + BF::Extension::TWO));
     assert_eq!(x * (-x), -x.square());
     assert_eq!(x + y, y + x);
     assert_eq!(x * y, y * x);

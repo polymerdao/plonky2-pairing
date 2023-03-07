@@ -160,19 +160,19 @@ impl<F: Extendable<12>> Field for DodecicExtension<F> {
         let e = d * d.frobenius(); // e = a^(p + p^2)
         let f = d * e.frobenius(); // f = a^(p + p^2 + p^3)
         let g = d * f.frobenius(); // g = a^(p + p^2 + p^3 + p^4)
-        let h = g.repeated_frobenius(3); // g = a^(p^4 + p^5 + p^6 + p^7)
-        let i = h.repeated_frobenius(4); // h = a^(p^8 + p^9 + p^10 + p^11)
+        let h = g.repeated_frobenius(3); // h = a^(p^4 + p^5 + p^6 + p^7)
+        let i = h.repeated_frobenius(4); // i = a^(p^8 + p^9 + p^10 + p^11)
         let j = f * h * i; // j = a^(p + p^2 + ... + p^11)
 
-        // f contains a^(r-1) and a^r is in the base field.
-        debug_assert!(FieldExtension::<12>::is_in_basefield(&(*self * f)));
+        // j contains a^(r-1) and a^r is in the base field.
+        debug_assert!(FieldExtension::<12>::is_in_basefield(&(*self * j)));
 
-        // g = a^r is in the base field, so only compute that
+        // k = a^r is in the base field, so only compute that
         // coefficient rather than the full product. The equation is
         // extracted from Mul::mul(...) below.
         let Self([a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]) = *self;
-        let Self([b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11]) = f;
-        let g = a0 * b0
+        let Self([b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11]) = j;
+        let k = a0 * b0
             + <Self as OEF<12>>::W
                 * (a1 * b11
                     + a2 * b10
@@ -184,9 +184,9 @@ impl<F: Extendable<12>> Field for DodecicExtension<F> {
                     + a8 * b4
                     + a9 * b3
                     + a10 * b2
-                    + a11 * b2);
+                    + a11 * b1);
 
-        Some(FieldExtension::<12>::scalar_mul(&f, g.inverse()))
+        Some(FieldExtension::<12>::scalar_mul(&j, k.inverse()))
     }
 
     fn from_noncanonical_biguint(n: BigUint) -> Self {
@@ -206,8 +206,10 @@ impl<F: Extendable<12>> Display for DodecicExtension<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} + {}*a + {}*a^2 + {}*a^3 + {}*a^4",
-            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4]
+            "{} + {}*a + {}*a^2 + {}*a^3 + {}*a^4 + {}*a^5 + {}*a^6 + {}*a^7 + {}*a^8 + {}*a^9 + {}*a^10 + {}*a^11",
+            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4],
+            self.0[5], self.0[6], self.0[7], self.0[8], self.0[9],
+            self.0[10], self.0[11]
         )
     }
 }
