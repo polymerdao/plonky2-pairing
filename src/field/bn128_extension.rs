@@ -17,7 +17,6 @@ impl Extendable<2> for Bn128Base {
 
     // TODO: the following consts should not be used
     const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 2] = [Self([0, 0, 0, 0]), Self([0, 0, 0, 0])];
-
     const EXT_POWER_OF_TWO_GENERATOR: [Self; 2] = [Self([0, 0, 0, 0]), Self([0, 0, 0, 0])];
 }
 
@@ -36,7 +35,6 @@ impl Extendable<6> for Bn128Base {
 
     // TODO: the following consts will not be used
     const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 6] = [Self([0, 0, 0, 0]); 6];
-
     const EXT_POWER_OF_TWO_GENERATOR: [Self; 6] = [Self([0, 0, 0, 0]); 6];
 }
 
@@ -45,10 +43,7 @@ impl Extendable<12> for Bn128Base {
 
     // TODO: the following consts will not be used
     const W: Self = Self([0, 0, 0, 0]);
-
     const DTH_ROOT: Self = Self(Bn128Base::NEG_ONE.0);
-
     const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 12] = [Self([0, 0, 0, 0]); 12];
-
     const EXT_POWER_OF_TWO_GENERATOR: [Self; 12] = [Self([0, 0, 0, 0]); 12];
 }

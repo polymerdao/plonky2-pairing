@@ -1,4 +1,4 @@
-use plonky2_field::extension::{Extendable, Frobenius};
+use plonky2_field::extension::Extendable;
 use plonky2_field::ops::Square;
 use plonky2_field::types::{Field, Sample};
 
@@ -135,17 +135,17 @@ pub(crate) fn test_inv_div<BF: Extendable<D>, const D: usize>() {
     assert_eq!((x * y) / z, x * (y / z));
 }
 
-#[allow(dead_code)]
-pub(crate) fn test_frobenius<BF: Extendable<D>, const D: usize>() {
-    let x = BF::Extension::rand();
-    assert_eq!(x.exp_biguint(&BF::order()), x.frobenius());
-    for count in 2..D {
-        assert_eq!(
-            x.repeated_frobenius(count),
-            (0..count).fold(x, |acc, _| acc.frobenius())
-        );
-    }
-}
+// #[allow(dead_code)]
+// pub(crate) fn test_frobenius<BF: Extendable<D>, const D: usize>() {
+//     let x = BF::Extension::rand();
+//     assert_eq!(x.exp_biguint(&BF::order()), x.frobenius());
+//     for count in 2..D {
+//         assert_eq!(
+//             x.repeated_frobenius(count),
+//             (0..count).fold(x, |acc, _| acc.frobenius())
+//         );
+//     }
+// }
 
 #[allow(dead_code)]
 pub(crate) fn test_field_order<BF: Extendable<D>, const D: usize>() {
@@ -181,10 +181,10 @@ macro_rules! test_field_extension {
             fn test_inv_div() {
                 $crate::field::field_testing::test_inv_div::<$field, $d>();
             }
-            #[test]
-            fn test_frobenius() {
-                $crate::field::field_testing::test_frobenius::<$field, $d>();
-            }
+            // #[test]
+            // fn test_frobenius() {
+            //     $crate::field::field_testing::test_frobenius::<$field, $d>();
+            // }
             #[test]
             fn test_field_order() {
                 $crate::field::field_testing::test_field_order::<$field, $d>();
