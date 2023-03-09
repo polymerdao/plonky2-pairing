@@ -1,13 +1,16 @@
-use crate::field::bn128_base::Bn128Base;
-use crate::field::bn128_scalar::Bn128Scalar;
-use plonky2::field::types::Field;
+use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve};
+use plonky2_field::types::Field;
 use serde::{Deserialize, Serialize};
 
-use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve};
+use crate::field::bn128_base::Bn128Base;
+use crate::field::bn128_scalar::Bn128Scalar;
 
 #[derive(Debug, Copy, Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Bn128;
 
+// https://ethereum.github.io/yellowpaper/paper.pdf
+// E.1. zkSNARK Related Precompiled Contracts
+// Y^2 = X^3 + 3
 impl Curve for Bn128 {
     type BaseField = Bn128Base;
     type ScalarField = Bn128Scalar;
@@ -22,17 +25,15 @@ impl Curve for Bn128 {
 }
 
 const BN128_GENERATOR_X: Bn128Base = Bn128Base([1, 0, 0, 0]);
-
 const BN128_GENERATOR_Y: Bn128Base = Bn128Base([2, 0, 0, 0]);
 
 #[cfg(test)]
 mod tests {
+    use crate::curve::bn128::Bn128;
     use crate::field::bn128_scalar::Bn128Scalar;
     use num::BigUint;
-    use plonky2::field::types::{Field, PrimeField};
-
-    use crate::curve::bn128::Bn128;
     use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve, ProjectivePoint};
+    use plonky2_field::types::{Field, PrimeField};
 
     #[test]
     fn test_generator() {
