@@ -14,7 +14,6 @@ use plonky2_field::types::{Field, PrimeField, Sample};
 /// The base field of the bn128 elliptic curve.
 ///
 /// Its order is
-/// ```ignore
 /// P = 21888242871839275222246405745257275088696311157297823662689037894645226208583
 /// 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
 /// ```

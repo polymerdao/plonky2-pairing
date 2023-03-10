@@ -9,8 +9,7 @@ impl Extendable<2> for Bn128Base {
     type Extension = QuadraticExtension<Self>;
 
     // Verifiable in Sage with
-    // `R.<x> = GF(p)[]; assert (x^2 - 3).is_irreducible()`.
-    const W: Self = Self([3, 0, 0, 0]);
+    const W: Self = Bn128Base::NEG_ONE;
 
     // DTH_ROOT = W^((ORDER - 1)/2)
     const DTH_ROOT: Self = Self(Bn128Base::NEG_ONE.0);
