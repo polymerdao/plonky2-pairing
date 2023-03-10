@@ -5,6 +5,7 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 use num::bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
+use crate::field::extension::MulByNonresidue;
 use plonky2_field::extension::{Extendable, FieldExtension, Frobenius, OEF};
 use plonky2_field::types::{Field, PrimeField, Sample};
 
@@ -69,6 +70,7 @@ impl<F: Extendable<2>> Field for QuadraticExtension<F> {
     const TWO_ADICITY: usize = F::TWO_ADICITY + 1;
     const CHARACTERISTIC_TWO_ADICITY: usize = F::CHARACTERISTIC_TWO_ADICITY;
 
+    const NONRESIDUE: Self = Self(F::EXT_NONRESIDUE);
     const MULTIPLICATIVE_GROUP_GENERATOR: Self = Self(F::EXT_MULTIPLICATIVE_GROUP_GENERATOR);
     const POWER_OF_TWO_GENERATOR: Self = Self(F::EXT_POWER_OF_TWO_GENERATOR);
 
@@ -208,6 +210,12 @@ impl<F: Extendable<2>> Div for QuadraticExtension<F> {
 impl<F: Extendable<2>> DivAssign for QuadraticExtension<F> {
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs;
+    }
+}
+
+impl<F: Extendable<2>> MulByNonresidue for QuadraticExtension<F> {
+    fn mul_by_nonresidue(&self) -> Self {
+        *self * QuadraticExtension(F::EXT_NONRESIDUE)
     }
 }
 
