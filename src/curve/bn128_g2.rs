@@ -1,10 +1,10 @@
 use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve};
-use plonky2_field::extension::quadratic::QuadraticExtension;
 use plonky2_field::types::Field;
 use serde::{Deserialize, Serialize};
 
 use crate::field::bn128_base::Bn128Base;
 use crate::field::bn128_scalar::Bn128Scalar;
+use crate::field::extension::quadratic::QuadraticExtension;
 
 #[derive(Debug, Copy, Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Bn128G2;

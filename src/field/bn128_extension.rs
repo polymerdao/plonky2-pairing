@@ -1,7 +1,7 @@
 use crate::field::bn128_base::Bn128Base;
 use crate::field::extension::dodecic::DodecicExtension;
+use crate::field::extension::quadratic::QuadraticExtension;
 use crate::field::extension::sextic::SexticExtension;
-use plonky2_field::extension::quadratic::QuadraticExtension;
 use plonky2_field::extension::Extendable;
 use plonky2_field::types::Field;
 
@@ -14,9 +14,9 @@ impl Extendable<2> for Bn128Base {
     // DTH_ROOT = W^((ORDER - 1)/2)
     const DTH_ROOT: Self = Self(Bn128Base::NEG_ONE.0);
 
-    // TODO: the following consts should not be used
-    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 2] = [Self([0, 0, 0, 0]), Self([0, 0, 0, 0])];
-    const EXT_POWER_OF_TWO_GENERATOR: [Self; 2] = [Self([0, 0, 0, 0]), Self([0, 0, 0, 0])];
+    // the following consts should not be used
+    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 2] = todo!();
+    const EXT_POWER_OF_TWO_GENERATOR: [Self; 2] = todo!();
 }
 
 impl Extendable<6> for Bn128Base {
@@ -32,17 +32,17 @@ impl Extendable<6> for Bn128Base {
         0x30644e72e131a029,
     ]);
 
-    // TODO: the following consts will not be used
-    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 6] = [Self([0, 0, 0, 0]); 6];
-    const EXT_POWER_OF_TWO_GENERATOR: [Self; 6] = [Self([0, 0, 0, 0]); 6];
+    // the following consts will not be used
+    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 6] = todo!();
+    const EXT_POWER_OF_TWO_GENERATOR: [Self; 6] = todo!();
 }
 
 impl Extendable<12> for Bn128Base {
     type Extension = DodecicExtension<Self>;
 
-    // TODO: the following consts will not be used
-    const W: Self = Self([0, 0, 0, 0]);
-    const DTH_ROOT: Self = Self(Bn128Base::NEG_ONE.0);
-    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 12] = [Self([0, 0, 0, 0]); 12];
-    const EXT_POWER_OF_TWO_GENERATOR: [Self; 12] = [Self([0, 0, 0, 0]); 12];
+    // the following consts will not be used
+    const W: Self = todo!();
+    const DTH_ROOT: Self = todo!();
+    const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 12] = todo!();
+    const EXT_POWER_OF_TWO_GENERATOR: [Self; 12] = todo!();
 }

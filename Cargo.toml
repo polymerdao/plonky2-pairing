@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-plonky2 = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
-plonky2_util = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
-plonky2_field = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
-plonky2_u32 = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
-plonky2_ecdsa = { git = "https://github.com/polymerdao/plonky2", rev = "4cb0b48df1d227d5461a4c28ed025aaea64e2e62" }
+plonky2 = { path = "../plonky2/plonky2" }
+plonky2_util = { path = "../plonky2/util" }
+plonky2_field = { path = "../plonky2/field" }
+plonky2_u32 = { path = "../plonky2/u32" }
+plonky2_ecdsa = { path = "../plonky2/ecdsa" }
 num = { version = "0.4", default-features = false, features = ["alloc", "rand"] }
 itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
