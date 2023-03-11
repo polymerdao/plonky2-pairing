@@ -107,6 +107,10 @@ impl Field for Bn128Scalar {
         Self::order()
     }
 
+    fn mul_by_nonresidue(&self) -> Self {
+        todo!()
+    }
+
     fn try_inverse(&self) -> Option<Self> {
         if self.is_zero() {
             return None;

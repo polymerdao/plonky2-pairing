@@ -37,17 +37,9 @@ impl Extendable<2> for Bn128Base {
 impl Extendable<6> for Bn128Base {
     type Extension = SexticExtension<Self>;
 
-    const W: Self = Self([3, 0, 0, 0]);
-
-    // DTH_ROOT = W^((ORDER - 1)/6)
-    const DTH_ROOT: Self = Self([
-        0xe4bd44e5607cfd49,
-        0xc28f069fbb966e3d,
-        0x5e6dd9e7e0acccb0,
-        0x30644e72e131a029,
-    ]);
-
     // the following consts will not be used
+    const W: Self = todo!();
+    const DTH_ROOT: Self = todo!();
     const EXT_NONRESIDUE: [Self; 6] = todo!();
     const EXT_MULTIPLICATIVE_GROUP_GENERATOR: [Self; 6] = todo!();
     const EXT_POWER_OF_TWO_GENERATOR: [Self; 6] = todo!();

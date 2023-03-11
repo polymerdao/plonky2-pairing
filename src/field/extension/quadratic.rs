@@ -5,7 +5,6 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 use num::bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
-use crate::field::extension::MulByNonresidue;
 use plonky2_field::extension::{Extendable, FieldExtension, Frobenius, OEF};
 use plonky2_field::types::{Field, PrimeField, Sample};
 
@@ -81,6 +80,10 @@ impl<F: Extendable<2>> Field for QuadraticExtension<F> {
     }
     fn characteristic() -> BigUint {
         F::characteristic()
+    }
+
+    fn mul_by_nonresidue(&self) -> Self {
+        *self * QuadraticExtension(F::EXT_NONRESIDUE)
     }
 
     // Algorithm 11.3.4 in Handbook of Elliptic and Hyperelliptic Curve Cryptography.
@@ -210,12 +213,6 @@ impl<F: Extendable<2>> Div for QuadraticExtension<F> {
 impl<F: Extendable<2>> DivAssign for QuadraticExtension<F> {
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs;
-    }
-}
-
-impl<F: Extendable<2>> MulByNonresidue for QuadraticExtension<F> {
-    fn mul_by_nonresidue(&self) -> Self {
-        *self * QuadraticExtension(F::EXT_NONRESIDUE)
     }
 }
 

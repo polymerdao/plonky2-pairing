@@ -6,9 +6,10 @@ use num::bigint::BigUint;
 use num::traits::Pow;
 use serde::{Deserialize, Serialize};
 
-use crate::field::extension::sextic::SexticExtension;
 use plonky2_field::extension::{Extendable, FieldExtension, Frobenius, OEF};
 use plonky2_field::types::{Field, Sample};
+
+use crate::field::extension::sextic::SexticExtension;
 
 // [F; 12] = Ext<6> + Ext<6>
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -152,27 +153,31 @@ impl<F: Extendable<12> + Extendable<6> + Extendable<2>> Field for DodecicExtensi
         F::characteristic()
     }
 
+    fn mul_by_nonresidue(&self) -> Self {
+        todo!()
+    }
+
     // Algorithm 11.3.4 in Handbook of Elliptic and Hyperelliptic Curve Cryptography.
     fn try_inverse(&self) -> Option<Self> {
         if self.is_zero() {
             return None;
         }
 
-        let c0 = SexticExtension::from_basefield_array([
+        let c0 = SexticExtension([
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5],
         ]);
-        let c1 = SexticExtension::from_basefield_array([
+        let c1 = SexticExtension([
             self.0[6], self.0[7], self.0[8], self.0[9], self.0[10], self.0[11],
         ]);
 
         let c0_squared = c0 * c0;
-        let c1_squared = c1 * c1;
-        let t = (c0_squared - c1_squared).inverse();
+        let c1_squared_mul_by_nonresidue = (c1 * c1).mul_by_nonresidue();
+        let t = (c0_squared - c1_squared_mul_by_nonresidue).inverse();
 
         let r0 = c0 * t;
         let r1 = -c1 * t;
 
-        Some(DodecicExtension::from_basefield_array([
+        Some(DodecicExtension([
             r0.0[0], r0.0[1], r0.0[2], r0.0[3], r0.0[4], r0.0[5], r1.0[0], r1.0[1], r1.0[2],
             r1.0[3], r1.0[4], r1.0[5],
         ]))
@@ -299,23 +304,19 @@ impl<F: Extendable<12> + Extendable<6> + Extendable<2>> Mul for DodecicExtension
 
     #[inline]
     fn mul(self, rhs: Self) -> Self {
-        let l0 = SexticExtension::from_basefield_array([
+        let l0 = SexticExtension([
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5],
         ]);
-        let l1 = SexticExtension::from_basefield_array([
+        let l1 = SexticExtension([
             self.0[6], self.0[7], self.0[8], self.0[9], self.0[10], self.0[11],
         ]);
-        let r0 = SexticExtension::from_basefield_array([
-            rhs.0[0], rhs.0[1], rhs.0[2], rhs.0[3], rhs.0[4], rhs.0[5],
-        ]);
-        let r1 = SexticExtension::from_basefield_array([
-            rhs.0[6], rhs.0[7], rhs.0[8], rhs.0[9], rhs.0[10], rhs.0[11],
-        ]);
+        let r0 = SexticExtension([rhs.0[0], rhs.0[1], rhs.0[2], rhs.0[3], rhs.0[4], rhs.0[5]]);
+        let r1 = SexticExtension([rhs.0[6], rhs.0[7], rhs.0[8], rhs.0[9], rhs.0[10], rhs.0[11]]);
 
         let aa = l0 * r0;
         let bb = l1 * r1;
 
-        let c0 = bb + aa;
+        let c0 = bb.mul_by_nonresidue() + aa;
         let c1 = (l0 + l1) * (r0 + r1) - aa - bb;
 
         Self([
