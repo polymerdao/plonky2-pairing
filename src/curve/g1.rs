@@ -6,13 +6,12 @@ use crate::field::bn128_base::Bn128Base;
 use crate::field::bn128_scalar::Bn128Scalar;
 
 #[derive(Debug, Copy, Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct Bn128;
-pub type Bn128G1 = Bn128;
+pub struct G1;
 
 // https://ethereum.github.io/yellowpaper/paper.pdf
 // E.1. zkSNARK Related Precompiled Contracts
 // Y^2 = X^3 + 3
-impl Curve for Bn128 {
+impl Curve for G1 {
     type BaseField = Bn128Base;
     type ScalarField = Bn128Scalar;
 
@@ -30,7 +29,7 @@ const BN128_GENERATOR_Y: Bn128Base = Bn128Base([2, 0, 0, 0]);
 
 #[cfg(test)]
 mod tests {
-    use crate::curve::bn128::Bn128G1;
+    use crate::curve::g1::G1;
     use crate::field::bn128_scalar::Bn128Scalar;
     use num::BigUint;
     use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve, ProjectivePoint};
@@ -38,10 +37,10 @@ mod tests {
 
     #[test]
     fn test_generator() {
-        let g = Bn128G1::GENERATOR_AFFINE;
+        let g = G1::GENERATOR_AFFINE;
         assert!(g.is_valid());
 
-        let neg_g = AffinePoint::<Bn128G1> {
+        let neg_g = AffinePoint::<G1> {
             x: g.x,
             y: -g.y,
             zero: g.zero,
@@ -51,7 +50,7 @@ mod tests {
 
     #[test]
     fn test_naive_multiplication() {
-        let g = Bn128G1::GENERATOR_PROJECTIVE;
+        let g = G1::GENERATOR_PROJECTIVE;
         let ten = Bn128Scalar::from_canonical_u64(10);
         let product = mul_naive(ten, g);
         let sum = g + g + g + g + g + g + g + g + g + g;
@@ -64,14 +63,14 @@ mod tests {
             1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888,
         ]));
         assert_eq!(
-            Bn128G1::convert(lhs) * Bn128G1::GENERATOR_PROJECTIVE,
-            mul_naive(lhs, Bn128G1::GENERATOR_PROJECTIVE)
+            G1::convert(lhs) * G1::GENERATOR_PROJECTIVE,
+            mul_naive(lhs, G1::GENERATOR_PROJECTIVE)
         );
     }
 
     /// A simple, somewhat inefficient implementation of multiplication which is used as a reference
     /// for correctness.
-    fn mul_naive(lhs: Bn128Scalar, rhs: ProjectivePoint<Bn128G1>) -> ProjectivePoint<Bn128G1> {
+    fn mul_naive(lhs: Bn128Scalar, rhs: ProjectivePoint<G1>) -> ProjectivePoint<G1> {
         let mut g = rhs;
         let mut sum = ProjectivePoint::ZERO;
         for limb in lhs.to_canonical_biguint().to_u64_digits().iter() {

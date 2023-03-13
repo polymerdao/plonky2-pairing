@@ -11,6 +11,7 @@ use plonky2_field::types::{Field, Sample};
 
 use crate::field::extension::quadratic::QuadraticExtension;
 
+// [F; 6] = Ext<2> + Ext<2> + Ext<2>
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct SexticExtension<F: Extendable<6>>(pub [F; 6]);
