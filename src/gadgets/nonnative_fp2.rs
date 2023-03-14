@@ -28,7 +28,7 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         rhs: &NonNativeTargetExt2<FF>,
     );
 
-    fn add_virtual_nonnative_ex2_target<FF: Field + Extendable<2>>(
+    fn add_virtual_nonnative_ext2_target<FF: Field + Extendable<2>>(
         &mut self,
     ) -> NonNativeTargetExt2<FF>;
 
@@ -66,7 +66,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
         self.connect_nonnative(&rhs.c1, &lhs.c1);
     }
 
-    fn add_virtual_nonnative_ex2_target<FF: Field + Extendable<2>>(
+    fn add_virtual_nonnative_ext2_target<FF: Field + Extendable<2>>(
         &mut self,
     ) -> NonNativeTargetExt2<FF> {
         let c0 = self.add_virtual_nonnative_target();
