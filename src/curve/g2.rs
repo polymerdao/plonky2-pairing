@@ -16,22 +16,20 @@ impl Curve for G2 {
     type BaseField = QuadraticExtension<Bn128Base>;
     type ScalarField = Bn128Scalar;
 
-    // 0x2b149d40ceb8aaae 81be18991be06ac3 b5b4c5e559dbefa3 3267e6dc24a138e5
-    //   0x9713b03af0fed4 cd2cafadeed8fdf4 a74fa084e52d1852 e4a2bd0685c315d2
     const A: QuadraticExtension<Bn128Base> =
         QuadraticExtension::<Bn128Base>([Bn128Base::ZERO, Bn128Base::ZERO]);
     const B: QuadraticExtension<Bn128Base> = QuadraticExtension::<Bn128Base>([
         Bn128Base([
-            0x3267e6dc24a138e5,
-            0xb5b4c5e559dbefa3,
-            0x81be18991be06ac3,
-            0x2b149d40ceb8aaae,
+            0x3bf938e377b802a8,
+            0x020b1b273633535d,
+            0x26b7edf049755260,
+            0x2514c6324384a86d,
         ]),
         Bn128Base([
-            0xe4a2bd0685c315d2,
-            0xa74fa084e52d1852,
-            0xcd2cafadeed8fdf4,
-            0x9713b03af0fed4,
+            0x38e7ecccd1dcff67,
+            0x65f0b37d93ce0d3e,
+            0xd749d0dd22ac00aa,
+            0x0141b9ce4a688d4d,
         ]),
     ]);
     const GENERATOR_AFFINE: AffinePoint<Self> = AffinePoint {
@@ -41,36 +39,32 @@ impl Curve for G2 {
     };
 }
 
-// 0x1800deef121f1e76 426a00665e5c4479 674322d4f75edadd 46debd5cd992f6ed
-// 0x198e9393920d483a 7260bfb731fb5d25 f1aa493335a9e712 97e485b7aef312c2
-// 0x12c85ea5db8c6deb 4aab71808dcb408f e3d1e7690c43d37b 4ce6cc0166fa7daa
-//  0x90689d0585ff075 ec9e99ad690c3395 bc4b313370b38ef3 55acdadcd122975b
 const BN128G2_GENERATOR_X: QuadraticExtension<Bn128Base> = QuadraticExtension::<Bn128Base>([
     Bn128Base([
-        0x46debd5cd992f6ed,
-        0x674322d4f75edadd,
-        0x426a00665e5c4479,
-        0x1800deef121f1e76,
+        0x8e83b5d102bc2026,
+        0xdceb1935497b0172,
+        0xfbb8264797811adf,
+        0x19573841af96503b,
     ]),
     Bn128Base([
-        0x97e485b7aef312c2,
-        0xf1aa493335a9e712,
-        0x7260bfb731fb5d25,
-        0x198e9393920d483a,
+        0xafb4737da84c6140,
+        0x6043dd5a5802d8c4,
+        0x09e950fc52a02f86,
+        0x14fef0833aea7b6b,
     ]),
 ]);
 const BN128G2_GENERATOR_Y: QuadraticExtension<Bn128Base> = QuadraticExtension::<Bn128Base>([
     Bn128Base([
-        0x4ce6cc0166fa7daa,
-        0xe3d1e7690c43d37b,
-        0x4aab71808dcb408f,
-        0x12c85ea5db8c6deb,
+        0x619dfa9d886be9f6,
+        0xfe7fd297f59e9b78,
+        0xff9e1a62231b7dfe,
+        0x28fd7eebae9e4206,
     ]),
     Bn128Base([
-        0x55acdadcd122975b,
-        0xbc4b313370b38ef3,
-        0xec9e99ad690c3395,
-        0x90689d0585ff075,
+        0x64095b56c71856ee,
+        0xdc57f922327d3cbb,
+        0x55f935be33351076,
+        0x0da4a0e693fd6482,
     ]),
 ]);
 
@@ -105,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn test_g1_multiplication() {
+    fn test_g2_multiplication() {
         let lhs = Bn128Scalar::from_noncanonical_biguint(BigUint::from_slice(&[
             1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888,
         ]));

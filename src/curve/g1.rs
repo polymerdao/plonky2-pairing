@@ -16,7 +16,12 @@ impl Curve for G1 {
     type ScalarField = Bn128Scalar;
 
     const A: Bn128Base = Bn128Base::ZERO;
-    const B: Bn128Base = Bn128Base([3, 0, 0, 0]);
+    const B: Bn128Base = Bn128Base([
+        0x7a17caa950ad28d7,
+        0x1f6ac17ae15521b9,
+        0x334bea4e696bd284,
+        0x2a1f6744ce179d8e,
+    ]);
     const GENERATOR_AFFINE: AffinePoint<Self> = AffinePoint {
         x: BN128_GENERATOR_X,
         y: BN128_GENERATOR_Y,
@@ -24,8 +29,8 @@ impl Curve for G1 {
     };
 }
 
-const BN128_GENERATOR_X: Bn128Base = Bn128Base([1, 0, 0, 0]);
-const BN128_GENERATOR_Y: Bn128Base = Bn128Base([2, 0, 0, 0]);
+const BN128_GENERATOR_X: Bn128Base = Bn128Base::ONE;
+const BN128_GENERATOR_Y: Bn128Base = Bn128Base::TWO;
 
 #[cfg(test)]
 mod tests {
