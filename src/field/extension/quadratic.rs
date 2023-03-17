@@ -92,14 +92,11 @@ impl<F: Extendable<2>> Field for QuadraticExtension<F> {
             return None;
         }
 
-        let a_pow_r_minus_1 = self.frobenius();
-        let a_pow_r = a_pow_r_minus_1 * *self;
-        debug_assert!(FieldExtension::<2>::is_in_basefield(&a_pow_r));
+        let c0 = self.0[0];
+        let c1 = self.0[1];
+        let t = (c0 * c0 - c1 * c1 * F::NONRESIDUE).try_inverse()?;
 
-        Some(FieldExtension::<2>::scalar_mul(
-            &a_pow_r_minus_1,
-            a_pow_r.0[0].inverse(),
-        ))
+        Some(Self([c0 * t, -c1 * t]))
     }
 
     fn from_noncanonical_biguint(n: BigUint) -> Self {
@@ -181,8 +178,11 @@ impl<F: Extendable<2>> Mul for QuadraticExtension<F> {
         let Self([a0, a1]) = self;
         let Self([b0, b1]) = rhs;
 
-        let c0 = a0 * b0 + <Self as OEF<2>>::W * a1 * b1;
-        let c1 = a0 * b1 + a1 * b0;
+        let aa = a0 * b0;
+        let bb = a1 * b1;
+
+        let c0 = bb * F::NONRESIDUE + aa;
+        let c1 = (a0 + a1) * (b0 + b1) - aa - bb;
 
         Self([c0, c1])
     }
