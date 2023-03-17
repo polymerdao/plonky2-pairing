@@ -76,21 +76,49 @@ impl Sample for Bn128Base {
     }
 }
 
+// const MONTGOMERY: [u64; 4] = [
+//     0xd35d438dc58f0d9d,
+//     0xa78eb28f5c70b3d,
+//     0x666ea36f7879462c,
+//     0xe0a77c19a07df2f,
+// ];
+const MONTGOMERY_INV: [u64; 4] = [
+    0xed84884a014afa37,
+    0xeb2022850278edf8,
+    0xcf63e9cfb74492d9,
+    0x2e67157159e5c639,
+];
+
 impl Field for Bn128Base {
     const ZERO: Self = Self([0; 4]);
-    const ONE: Self = Self([1, 0, 0, 0]);
-    const TWO: Self = Self([2, 0, 0, 0]);
+    const ONE: Self = Self([
+        0xd35d438dc58f0d9d,
+        0xa78eb28f5c70b3d,
+        0x666ea36f7879462c,
+        0xe0a77c19a07df2f,
+    ]);
+    const TWO: Self = Self([
+        0xa6ba871b8b1e1b3a,
+        0x14f1d651eb8e167b,
+        0xccdd46def0f28c58,
+        0x1c14ef83340fbe5e,
+    ]);
     const NEG_ONE: Self = Self([
-        0x3c208c16d87cfd46,
-        0x97816a916871ca8d,
-        0xb85045b68181585d,
-        0x30644e72e131a029,
+        0x68c3488912edefaa,
+        0x8d087f6872aabf4f,
+        0x51e1a24709081231,
+        0x2259d6b14729c0fa,
     ]);
 
     const TWO_ADICITY: usize = 1;
     const CHARACTERISTIC_TWO_ADICITY: usize = Self::TWO_ADICITY;
 
-    const NONRESIDUE: Self = todo!();
+    const NONRESIDUE: Self = Self([
+        0x68c3488912edefaa,
+        0x8d087f6872aabf4f,
+        0x51e1a24709081231,
+        0x2259d6b14729c0fa,
+    ]);
 
     // Sage: `g = GF(p).multiplicative_generator()`
     const MULTIPLICATIVE_GROUP_GENERATOR: Self = Self([3, 0, 0, 0]);
@@ -120,7 +148,11 @@ impl Field for Bn128Base {
         }
 
         // Fermat's Little Theorem
-        Some(self.exp_biguint(&(Self::order() - BigUint::one() - BigUint::one())))
+        Some(
+            self.exp_biguint(&(Self::order() - BigUint::one() - BigUint::one()))
+                * Bn128Base::ONE
+                * Bn128Base::ONE,
+        )
     }
 
     fn from_noncanonical_biguint(val: BigUint) -> Self {
@@ -222,7 +254,10 @@ impl Mul for Bn128Base {
     #[inline]
     fn mul(self, rhs: Self) -> Self {
         Self::from_noncanonical_biguint(
-            (self.to_canonical_biguint() * rhs.to_canonical_biguint()).mod_floor(&Self::order()),
+            (self.to_canonical_biguint()
+                * rhs.to_canonical_biguint()
+                * biguint_from_array(MONTGOMERY_INV))
+            .mod_floor(&Self::order()),
         )
     }
 }
