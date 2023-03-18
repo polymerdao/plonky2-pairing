@@ -60,6 +60,11 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         &mut self,
         x: &NonNativeTargetExt2<FF>,
     ) -> NonNativeTargetExt2<FF>;
+
+    fn mul_by_nonresidue_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt2<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F, D>
@@ -185,6 +190,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
             _phantom: PhantomData,
         }
     }
+
+    fn mul_by_nonresidue_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt2<FF> {
+        let non_residue = self.constant_nonnative_ext2(QuadraticExtension(FF::EXT_NONRESIDUE));
+        self.mul_nonnative_ext2(&x, &non_residue)
+    }
 }
 
 #[cfg(test)]
@@ -197,7 +210,7 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2_field::types::Sample;
+    use plonky2_field::types::{Field, Sample};
 
     #[test]
     fn test_nonnative_ext2_add() -> Result<()> {
@@ -280,51 +293,51 @@ mod tests {
         data.verify(proof)
     }
 
-    // #[test]
-    // fn test_nonnative_ext2_neg() -> Result<()> {
-    //     type FF = Bn128Base;
-    //     const D: usize = 2;
-    //     type C = PoseidonGoldilocksConfig;
-    //     type F = <C as GenericConfig<D>>::F;
-    //     let x_ff = FF::rand();
-    //     let neg_x_ff = -x_ff;
-    //
-    //     let config = CircuitConfig::standard_ecc_config();
-    //     let pw = PartialWitness::new();
-    //     let mut builder = CircuitBuilder::<F, D>::new(config);
-    //
-    //     let x = builder.constant_nonnative(x_ff);
-    //     let neg_x = builder.neg_nonnative(&x);
-    //
-    //     let neg_x_expected = builder.constant_nonnative(neg_x_ff);
-    //     builder.connect_nonnative(&neg_x, &neg_x_expected);
-    //
-    //     let data = builder.build::<C>();
-    //     let proof = data.prove(pw).unwrap();
-    //     data.verify(proof)
-    // }
-    //
-    // #[test]
-    // fn test_nonnative_ext2_inv() -> Result<()> {
-    //     type FF = Bn128Base;
-    //     const D: usize = 2;
-    //     type C = PoseidonGoldilocksConfig;
-    //     type F = <C as GenericConfig<D>>::F;
-    //     let x_ff = FF::rand();
-    //     let inv_x_ff = x_ff.inverse();
-    //
-    //     let config = CircuitConfig::standard_ecc_config();
-    //     let pw = PartialWitness::new();
-    //     let mut builder = CircuitBuilder::<F, D>::new(config);
-    //
-    //     let x = builder.constant_nonnative(x_ff);
-    //     let inv_x = builder.inv_nonnative(&x);
-    //
-    //     let inv_x_expected = builder.constant_nonnative(inv_x_ff);
-    //     builder.connect_nonnative(&inv_x, &inv_x_expected);
-    //
-    //     let data = builder.build::<C>();
-    //     let proof = data.prove(pw).unwrap();
-    //     data.verify(proof)
-    // }
+    #[test]
+    fn test_nonnative_ext2_neg() -> Result<()> {
+        type FF = QuadraticExtension<Bn128Base>;
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let x_ff = FF::rand();
+        let neg_x_ff = -x_ff;
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext2(x_ff);
+        let neg_x = builder.neg_nonnative_ext2(&x);
+
+        let neg_x_expected = builder.constant_nonnative_ext2(neg_x_ff);
+        builder.connect_nonnative_ext2(&neg_x, &neg_x_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_nonnative_ext2_inv() -> Result<()> {
+        type FF = QuadraticExtension<Bn128Base>;
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let x_ff = FF::rand();
+        let inv_x_ff = x_ff.inverse();
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext2(x_ff);
+        let inv_x = builder.inv_nonnative_ext2(&x);
+
+        let inv_x_expected = builder.constant_nonnative_ext2(inv_x_ff);
+        builder.connect_nonnative_ext2(&inv_x, &inv_x_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
 }
