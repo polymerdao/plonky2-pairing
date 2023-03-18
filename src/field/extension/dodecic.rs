@@ -131,6 +131,7 @@ impl<F: Extendable<12> + Extendable<6> + Extendable<2>> Field for DodecicExtensi
         F::ZERO,
         F::ZERO,
     ]);
+    const MONTGOMERY_INV: Self = todo!();
 
     // `p^5 - 1 = (p - 1)(p^4 + p^3 + p^2 + p + 1)`. The `p - 1` term
     // has a two-adicity of `F::TWO_ADICITY` and the term `p^4 + p^3 +

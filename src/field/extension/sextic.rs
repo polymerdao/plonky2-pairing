@@ -73,6 +73,7 @@ impl<F: Extendable<6> + Extendable<2>> Field for SexticExtension<F> {
     const ONE: Self = Self([F::ONE, F::ZERO, F::ZERO, F::ZERO, F::ZERO, F::ZERO]);
     const TWO: Self = Self([F::TWO, F::ZERO, F::ZERO, F::ZERO, F::ZERO, F::ZERO]);
     const NEG_ONE: Self = Self([F::NEG_ONE, F::ZERO, F::ZERO, F::ZERO, F::ZERO, F::ZERO]);
+    const MONTGOMERY_INV: Self = todo!();
 
     const TWO_ADICITY: usize = F::TWO_ADICITY + 2;
     const CHARACTERISTIC_TWO_ADICITY: usize = F::CHARACTERISTIC_TWO_ADICITY;

@@ -84,6 +84,7 @@ impl Field for Bn128Scalar {
         0xb85045b68181585d,
         0x30644e72e131a029,
     ]);
+    const MONTGOMERY_INV: Self = todo!();
 
     const TWO_ADICITY: usize = 1;
     const CHARACTERISTIC_TWO_ADICITY: usize = Self::TWO_ADICITY;

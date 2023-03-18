@@ -76,12 +76,6 @@ impl Sample for Bn128Base {
     }
 }
 
-// const MONTGOMERY: [u64; 4] = [
-//     0xd35d438dc58f0d9d,
-//     0xa78eb28f5c70b3d,
-//     0x666ea36f7879462c,
-//     0xe0a77c19a07df2f,
-// ];
 const MONTGOMERY_INV: [u64; 4] = [
     0xed84884a014afa37,
     0xeb2022850278edf8,
@@ -109,6 +103,7 @@ impl Field for Bn128Base {
         0x51e1a24709081231,
         0x2259d6b14729c0fa,
     ]);
+    const MONTGOMERY_INV: Self = Self(MONTGOMERY_INV);
 
     const TWO_ADICITY: usize = 1;
     const CHARACTERISTIC_TWO_ADICITY: usize = Self::TWO_ADICITY;
