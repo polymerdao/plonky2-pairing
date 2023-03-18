@@ -176,6 +176,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
         // "High-Speed Software Implementation of the Optimal Ate Pairing
         // over Barreto–Naehrig Curves"; Algorithm 8
         // TODO: deal with special case inv of zero
+        // TODO: should use SimpleGenerator
 
         let c0_squared = self.mul_nonnative(&x.c0, &x.c0);
         let c1_squared = self.mul_nonnative(&x.c1, &x.c1);
