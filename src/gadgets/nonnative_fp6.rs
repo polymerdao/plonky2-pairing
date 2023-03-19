@@ -64,6 +64,11 @@ pub trait CircuitBuilderNonNativeExt6<F: RichField + Extendable<D>, const D: usi
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF>;
+
+    fn mul_by_nonresidue_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+    ) -> NonNativeTargetExt6<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F, D>
@@ -234,6 +239,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F
             c0: self.mul_nonnative_ext2(&t, &c0),
             c1: self.mul_nonnative_ext2(&t, &c1),
             c2: self.mul_nonnative_ext2(&t, &c2),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn mul_by_nonresidue_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+    ) -> NonNativeTargetExt6<FF> {
+        NonNativeTargetExt6 {
+            c0: self.mul_by_nonresidue_nonnative_ext2(&x.c2),
+            c1: x.c0.clone(),
+            c2: x.c1.clone(),
             _phantom: PhantomData,
         }
     }
