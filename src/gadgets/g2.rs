@@ -70,19 +70,22 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
 
-    // fn curve_repeated_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p: &AffinePointTargetG2<FF>,
-    //     n: usize,
-    // ) -> AffinePointTargetG2<FF>;
-    //
-    // /// Add two points, which are assumed to be non-equal.
-    // fn curve_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p1: &AffinePointTargetG2<FF>,
-    //     p2: &AffinePointTargetG2<FF>,
-    // ) -> AffinePointTargetG2<FF>;
-    //
+    fn curve_repeated_double_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        n: usize,
+    ) -> AffinePointTargetG2<FF>;
+
+    /// Add two points, which are assumed to be non-equal.
+    fn curve_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF>;
+
     // fn curve_conditional_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
     //     p1: &AffinePointTargetG2<FF>,
@@ -207,43 +210,49 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
 
         AffinePointTargetG2 { x: x3, y: y3 }
     }
-    //
-    // fn curve_repeated_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p: &AffinePointTargetG2<FF>,
-    //     n: usize,
-    // ) -> AffinePointTargetG2<FF> {
-    //     let mut result = p.clone();
-    //
-    //     for _ in 0..n {
-    //         result = self.curve_double(&result);
-    //     }
-    //
-    //     result
-    // }
-    //
-    // fn curve_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p1: &AffinePointTargetG2<FF>,
-    //     p2: &AffinePointTargetG2<FF>,
-    // ) -> AffinePointTargetG2<FF> {
-    //     let AffinePointTargetG2 { x: x1, y: y1 } = p1;
-    //     let AffinePointTargetG2 { x: x2, y: y2 } = p2;
-    //
-    //     let u = self.sub_nonnative(y2, y1);
-    //     let v = self.sub_nonnative(x2, x1);
-    //     let v_inv = self.inv_nonnative(&v);
-    //     let s = self.mul_nonnative(&u, &v_inv);
-    //     let s_squared = self.mul_nonnative(&s, &s);
-    //     let x_sum = self.add_nonnative(x2, x1);
-    //     let x3 = self.sub_nonnative(&s_squared, &x_sum);
-    //     let x_diff = self.sub_nonnative(x1, &x3);
-    //     let prod = self.mul_nonnative(&s, &x_diff);
-    //     let y3 = self.sub_nonnative(&prod, y1);
-    //
-    //     AffinePointTargetG2 { x: x3, y: y3 }
-    // }
-    //
+
+    fn curve_repeated_double_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        n: usize,
+    ) -> AffinePointTargetG2<FF> {
+        let mut result = p.clone();
+
+        for _ in 0..n {
+            result = self.curve_double_g2::<C, FF>(&result);
+        }
+
+        result
+    }
+
+    fn curve_add_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF> {
+        let AffinePointTargetG2 { x: x1, y: y1 } = p1;
+        let AffinePointTargetG2 { x: x2, y: y2 } = p2;
+
+        let u = self.sub_nonnative_ext2(y2, y1);
+        let v = self.sub_nonnative_ext2(x2, x1);
+        let v_inv = self.inv_nonnative_ext2(&v);
+        let s = self.mul_nonnative_ext2(&u, &v_inv);
+        let s_squared = self.mul_nonnative_ext2(&s, &s);
+        let x_sum = self.add_nonnative_ext2(x2, x1);
+        let x3 = self.sub_nonnative_ext2(&s_squared, &x_sum);
+        let x_diff = self.sub_nonnative_ext2(x1, &x3);
+        let prod = self.mul_nonnative_ext2(&s, &x_diff);
+        let y3 = self.sub_nonnative_ext2(&prod, y1);
+
+        AffinePointTargetG2 { x: x3, y: y3 }
+    }
+
     // fn curve_conditional_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
     //     p1: &AffinePointTargetG2<FF>,
@@ -400,7 +409,38 @@ mod tests {
         builder.curve_assert_valid_g2::<G2, Bn128Base>(&double_neg_g_actual);
 
         builder.connect_affine_point_g2::<G2, Bn128Base>(&double_g_expected, &double_g_actual);
-        builder.connect_affine_point_g2::<G2, Bn128Base>(&double_neg_g_expected, &double_neg_g_actual);
+        builder
+            .connect_affine_point_g2::<G2, Bn128Base>(&double_neg_g_expected, &double_neg_g_actual);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_curve_add() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g = G2::GENERATOR_AFFINE;
+        let double_g = g.double();
+        let g_plus_2g = (g + double_g).to_affine();
+        let g_plus_2g_expected = builder.constant_affine_point_g2(g_plus_2g);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&g_plus_2g_expected);
+
+        let g_target = builder.constant_affine_point_g2(g);
+        let double_g_target = builder.curve_double_g2::<G2, Bn128Base>(&g_target);
+        let g_plus_2g_actual = builder.curve_add_g2::<G2, Bn128Base>(&g_target, &double_g_target);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&g_plus_2g_actual);
+
+        builder.connect_affine_point_g2::<G2, Bn128Base>(&g_plus_2g_expected, &g_plus_2g_actual);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
