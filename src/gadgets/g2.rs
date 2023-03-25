@@ -3,6 +3,7 @@ use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTarget
 use core::fmt::Debug;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve};
 use plonky2_field::types::{Field, PrimeField};
@@ -53,14 +54,14 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
 
-    // fn curve_conditional_neg_g2<
-    //     C: Curve<BaseField = QuadraticExtension<FF>>,
-    //     FF: PrimeField + Extendable<2>,
-    // >(
-    //     &mut self,
-    //     p: &AffinePointTargetG2<FF>,
-    //     b: BoolTarget,
-    // ) -> AffinePointTargetG2<FF>;
+    fn curve_conditional_neg_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        b: BoolTarget,
+    ) -> AffinePointTargetG2<FF>;
 
     fn curve_double_g2<
         C: Curve<BaseField = QuadraticExtension<FF>>,
@@ -86,13 +87,16 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         p2: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
 
-    // fn curve_conditional_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p1: &AffinePointTargetG2<FF>,
-    //     p2: &AffinePointTargetG2<FF>,
-    //     b: BoolTarget,
-    // ) -> AffinePointTargetG2<FF>;
-    //
+    fn curve_conditional_add_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+        b: BoolTarget,
+    ) -> AffinePointTargetG2<FF>;
+
     // fn curve_scalar_mul_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
     //     p: &AffinePointTargetG2<FF>,
@@ -172,16 +176,19 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         }
     }
 
-    // fn curve_conditional_neg_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p: &AffinePointTargetG2<FF>,
-    //     b: BoolTarget,
-    // ) -> AffinePointTargetG2<FF> {
-    //     AffinePointTargetG2 {
-    //         x: p.x.clone(),
-    //         y: self.nonnative_conditional_neg_ext2(&p.y, b),
-    //     }
-    // }
+    fn curve_conditional_neg_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        b: BoolTarget,
+    ) -> AffinePointTargetG2<FF> {
+        AffinePointTargetG2 {
+            x: p.x.clone(),
+            y: self.nonnative_conditional_neg_ext2(&p.y, b),
+        }
+    }
 
     fn curve_double_g2<
         C: Curve<BaseField = QuadraticExtension<FF>>,
@@ -253,25 +260,28 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         AffinePointTargetG2 { x: x3, y: y3 }
     }
 
-    // fn curve_conditional_add_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
-    //     &mut self,
-    //     p1: &AffinePointTargetG2<FF>,
-    //     p2: &AffinePointTargetG2<FF>,
-    //     b: BoolTarget,
-    // ) -> AffinePointTargetG2<FF> {
-    //     let not_b = self.not(b);
-    //     let sum = self.curve_add(p1, p2);
-    //     let x_if_true = self.mul_nonnative_by_bool(&sum.x, b);
-    //     let y_if_true = self.mul_nonnative_by_bool(&sum.y, b);
-    //     let x_if_false = self.mul_nonnative_by_bool(&p1.x, not_b);
-    //     let y_if_false = self.mul_nonnative_by_bool(&p1.y, not_b);
-    //
-    //     let x = self.add_nonnative(&x_if_true, &x_if_false);
-    //     let y = self.add_nonnative(&y_if_true, &y_if_false);
-    //
-    //     AffinePointTargetG2 { x, y }
-    // }
-    //
+    fn curve_conditional_add_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+        b: BoolTarget,
+    ) -> AffinePointTargetG2<FF> {
+        let not_b = self.not(b);
+        let sum = self.curve_add_g2::<C, FF>(p1, p2);
+        let x_if_true = self.mul_nonnative_by_bool_ext2(&sum.x, b);
+        let y_if_true = self.mul_nonnative_by_bool_ext2(&sum.y, b);
+        let x_if_false = self.mul_nonnative_by_bool_ext2(&p1.x, not_b);
+        let y_if_false = self.mul_nonnative_by_bool_ext2(&p1.y, not_b);
+
+        let x = self.add_nonnative_ext2(&x_if_true, &x_if_false);
+        let y = self.add_nonnative_ext2(&y_if_true, &y_if_false);
+
+        AffinePointTargetG2 { x, y }
+    }
+
     // fn curve_scalar_mul_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
     //     p: &AffinePointTargetG2<FF>,

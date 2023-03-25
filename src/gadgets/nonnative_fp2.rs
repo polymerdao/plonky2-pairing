@@ -1,6 +1,7 @@
 use crate::field::extension::quadratic::QuadraticExtension;
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_field::extension::Extendable;
 use plonky2_field::types::{Field, PrimeField};
@@ -38,6 +39,12 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         b: &NonNativeTargetExt2<FF>,
     ) -> NonNativeTargetExt2<FF>;
 
+    fn mul_nonnative_by_bool_ext2<FF: Field + Extendable<2>>(
+        &mut self,
+        a: &NonNativeTargetExt2<FF>,
+        b: BoolTarget,
+    ) -> NonNativeTargetExt2<FF>;
+
     // Subtract two `NonNativeTarget`s.
     fn sub_nonnative_ext2<FF: PrimeField + Extendable<2>>(
         &mut self,
@@ -64,6 +71,12 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
     fn mul_by_nonresidue_nonnative_ext2<FF: PrimeField + Extendable<2>>(
         &mut self,
         x: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt2<FF>;
+
+    fn nonnative_conditional_neg_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        b: BoolTarget,
     ) -> NonNativeTargetExt2<FF>;
 }
 
@@ -116,6 +129,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
         NonNativeTargetExt2 {
             c0,
             c1,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn mul_nonnative_by_bool_ext2<FF: Field + Extendable<2>>(
+        &mut self,
+        a: &NonNativeTargetExt2<FF>,
+        b: BoolTarget,
+    ) -> NonNativeTargetExt2<FF> {
+        NonNativeTargetExt2 {
+            c0: self.mul_nonnative_by_bool(&a.c0, b),
+            c1: self.mul_nonnative_by_bool(&a.c1, b),
             _phantom: PhantomData,
         }
     }
@@ -198,6 +223,19 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
     ) -> NonNativeTargetExt2<FF> {
         let non_residue = self.constant_nonnative_ext2(QuadraticExtension(FF::EXT_NONRESIDUE));
         self.mul_nonnative_ext2(&x, &non_residue)
+    }
+
+    fn nonnative_conditional_neg_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        b: BoolTarget,
+    ) -> NonNativeTargetExt2<FF> {
+        let not_b = self.not(b);
+        let neg = self.neg_nonnative_ext2(x);
+        let x_if_true = self.mul_nonnative_by_bool_ext2(&neg, b);
+        let x_if_false = self.mul_nonnative_by_bool_ext2(x, not_b);
+
+        self.add_nonnative_ext2(&x_if_true, &x_if_false)
     }
 }
 
