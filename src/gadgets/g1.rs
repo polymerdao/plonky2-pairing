@@ -98,15 +98,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     }
 
     fn curve_assert_valid<C: Curve>(&mut self, p: &AffinePointTarget<C>) {
-        let a = self.constant_nonnative(C::A);
         let b = self.constant_nonnative(C::B);
 
         let y_squared = self.mul_nonnative(&p.y, &p.y);
         let x_squared = self.mul_nonnative(&p.x, &p.x);
         let x_cubed = self.mul_nonnative(&x_squared, &p.x);
-        let a_x = self.mul_nonnative(&a, &p.x);
-        let a_x_plus_b = self.add_nonnative(&a_x, &b);
-        let rhs = self.add_nonnative(&x_cubed, &a_x_plus_b);
+        let rhs = self.add_nonnative(&x_cubed, &b);
 
         self.connect_nonnative(&y_squared, &rhs);
     }
@@ -138,9 +135,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let double_x_squared = self.add_nonnative(&x_squared, &x_squared);
         let triple_x_squared = self.add_nonnative(&double_x_squared, &x_squared);
 
-        let a = self.constant_nonnative(C::A);
-        let triple_xx_a = self.add_nonnative(&triple_x_squared, &a);
-        let lambda = self.mul_nonnative(&triple_xx_a, &inv_double_y);
+        let lambda = self.mul_nonnative(&triple_x_squared, &inv_double_y);
         let lambda_squared = self.mul_nonnative(&lambda, &lambda);
         let x_double = self.add_nonnative(x, x);
 
