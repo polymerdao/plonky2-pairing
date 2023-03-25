@@ -370,4 +370,41 @@ mod tests {
 
         data.verify(proof).unwrap()
     }
+
+    #[test]
+    fn test_curve_double() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g = G2::GENERATOR_AFFINE;
+        let g_target = builder.constant_affine_point_g2(g);
+        let neg_g_target = builder.curve_neg_g2::<G2, Bn128Base>(&g_target);
+
+        let double_g = g.double();
+        let double_g_expected = builder.constant_affine_point_g2(double_g);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&double_g_expected);
+
+        let double_neg_g = (-g).double();
+        let double_neg_g_expected = builder.constant_affine_point_g2(double_neg_g);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&double_neg_g_expected);
+
+        let double_g_actual = builder.curve_double_g2::<G2, Bn128Base>(&g_target);
+        let double_neg_g_actual = builder.curve_double_g2::<G2, Bn128Base>(&neg_g_target);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&double_g_actual);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&double_neg_g_actual);
+
+        builder.connect_affine_point_g2::<G2, Bn128Base>(&double_g_expected, &double_g_actual);
+        builder.connect_affine_point_g2::<G2, Bn128Base>(&double_neg_g_expected, &double_neg_g_actual);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
 }
