@@ -32,9 +32,14 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         lhs: &AffinePointTargetG2<FF>,
         rhs: &AffinePointTargetG2<FF>,
     );
-    //
-    // fn add_virtual_affine_point_target_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(&mut self) -> AffinePointTargetG2<FF>;
-    //
+
+    fn add_virtual_affine_point_target_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+    ) -> AffinePointTargetG2<FF>;
+
     fn curve_assert_valid_g2<
         C: Curve<BaseField = QuadraticExtension<FF>>,
         FF: PrimeField + Extendable<2>,
@@ -47,15 +52,24 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         &mut self,
         p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
-    //
-    // fn curve_conditional_neg_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+
+    // fn curve_conditional_neg_g2<
+    //     C: Curve<BaseField = QuadraticExtension<FF>>,
+    //     FF: PrimeField + Extendable<2>,
+    // >(
     //     &mut self,
     //     p: &AffinePointTargetG2<FF>,
     //     b: BoolTarget,
     // ) -> AffinePointTargetG2<FF>;
-    //
-    // fn curve_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(&mut self, p: &AffinePointTargetG2<FF>) -> AffinePointTargetG2<FF>;
-    //
+
+    fn curve_double_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF>;
+
     // fn curve_repeated_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
     //     p: &AffinePointTargetG2<FF>,
@@ -112,14 +126,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         self.connect_nonnative_ext2(&lhs.y, &rhs.y);
     }
 
-    //
-    // fn add_virtual_affine_point_target_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(&mut self) -> AffinePointTargetG2<FF> {
-    //     let x = self.add_virtual_nonnative_target();
-    //     let y = self.add_virtual_nonnative_target();
-    //
-    //     AffinePointTargetG2 { x, y }
-    // }
-    //
+    fn add_virtual_affine_point_target_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+    ) -> AffinePointTargetG2<FF> {
+        let x = self.add_virtual_nonnative_ext2_target();
+        let y = self.add_virtual_nonnative_ext2_target();
+
+        AffinePointTargetG2 { x, y }
+    }
+
     fn curve_assert_valid_g2<
         C: Curve<BaseField = QuadraticExtension<FF>>,
         FF: PrimeField + Extendable<2>,
@@ -158,33 +176,37 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
     // ) -> AffinePointTargetG2<FF> {
     //     AffinePointTargetG2 {
     //         x: p.x.clone(),
-    //         y: self.nonnative_conditional_neg(&p.y, b),
+    //         y: self.nonnative_conditional_neg_ext2(&p.y, b),
     //     }
     // }
-    //
-    // fn curve_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(&mut self, p: &AffinePointTargetG2<FF>) -> AffinePointTargetG2<FF> {
-    //     let AffinePointTargetG2 { x, y } = p;
-    //     let double_y = self.add_nonnative(y, y);
-    //     let inv_double_y = self.inv_nonnative(&double_y);
-    //     let x_squared = self.mul_nonnative(x, x);
-    //     let double_x_squared = self.add_nonnative(&x_squared, &x_squared);
-    //     let triple_x_squared = self.add_nonnative(&double_x_squared, &x_squared);
-    //
-    //     let a = self.constant_nonnative(C::A);
-    //     let triple_xx_a = self.add_nonnative(&triple_x_squared, &a);
-    //     let lambda = self.mul_nonnative(&triple_xx_a, &inv_double_y);
-    //     let lambda_squared = self.mul_nonnative(&lambda, &lambda);
-    //     let x_double = self.add_nonnative(x, x);
-    //
-    //     let x3 = self.sub_nonnative(&lambda_squared, &x_double);
-    //
-    //     let x_diff = self.sub_nonnative(x, &x3);
-    //     let lambda_x_diff = self.mul_nonnative(&lambda, &x_diff);
-    //
-    //     let y3 = self.sub_nonnative(&lambda_x_diff, y);
-    //
-    //     AffinePointTargetG2 { x: x3, y: y3 }
-    // }
+
+    fn curve_double_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF> {
+        let AffinePointTargetG2 { x, y } = p;
+        let double_y = self.add_nonnative_ext2(y, y);
+        let inv_double_y = self.inv_nonnative_ext2(&double_y);
+        let x_squared = self.mul_nonnative_ext2(x, x);
+        let double_x_squared = self.add_nonnative_ext2(&x_squared, &x_squared);
+        let triple_x_squared = self.add_nonnative_ext2(&double_x_squared, &x_squared);
+
+        let lambda = self.mul_nonnative_ext2(&triple_x_squared, &inv_double_y);
+        let lambda_squared = self.mul_nonnative_ext2(&lambda, &lambda);
+        let x_double = self.add_nonnative_ext2(x, x);
+
+        let x3 = self.sub_nonnative_ext2(&lambda_squared, &x_double);
+
+        let x_diff = self.sub_nonnative_ext2(x, &x3);
+        let lambda_x_diff = self.mul_nonnative_ext2(&lambda, &x_diff);
+
+        let y3 = self.sub_nonnative_ext2(&lambda_x_diff, y);
+
+        AffinePointTargetG2 { x: x3, y: y3 }
+    }
     //
     // fn curve_repeated_double_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
     //     &mut self,
@@ -287,13 +309,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
 mod tests {
     use crate::curve::g2::G2;
     use crate::field::bn128_base::Bn128Base;
+    use crate::field::extension::quadratic::QuadraticExtension;
     use crate::gadgets::g2::CircuitBuilderCurveG2;
     use anyhow::Result;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2_ecdsa::curve::curve_types::Curve;
+    use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve};
+    use plonky2_field::types::Field;
 
     #[test]
     fn test_curve_point_is_valid() -> Result<()> {
@@ -317,5 +341,33 @@ mod tests {
         let proof = data.prove(pw).unwrap();
 
         data.verify(proof)
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_curve_point_is_not_valid() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g = G2::GENERATOR_AFFINE;
+        let not_g = AffinePoint::<G2> {
+            x: g.x,
+            y: g.y + QuadraticExtension::<Bn128Base>::ONE,
+            zero: g.zero,
+        };
+        let not_g_target = builder.constant_affine_point_g2(not_g);
+
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&not_g_target);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof).unwrap()
     }
 }
