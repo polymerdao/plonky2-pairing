@@ -256,6 +256,7 @@ mod tests {
     use crate::gadgets::g1::CircuitBuilderCurve;
     use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
     use anyhow::Result;
+    use log::LevelFilter;
     use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -417,6 +418,11 @@ mod tests {
     #[test]
     #[ignore]
     fn test_curve_mul() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
