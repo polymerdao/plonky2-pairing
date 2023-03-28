@@ -1,7 +1,10 @@
 use core::marker::PhantomData;
 
+use crate::field::extension::quadratic::QuadraticExtension;
 use crate::gadgets::g1::{AffinePointTarget, CircuitBuilderCurve};
+use crate::gadgets::g2::{AffinePointTargetG2, CircuitBuilderCurveG2};
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
+use crate::gadgets::nonnative_fp2::NonNativeTargetExt2;
 use crate::gadgets::split_nonnative::CircuitBuilderSplit;
 use num::BigUint;
 use plonky2::field::extension::Extendable;
@@ -13,6 +16,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 use plonky2_ecdsa::curve::curve_types::{Curve, CurveScalar};
 use plonky2_ecdsa::gadgets::biguint::BigUintTarget;
+use plonky2_field::types::PrimeField;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
 const WINDOW_SIZE: usize = 4;
@@ -166,11 +170,246 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderWindowedMul<F, 
     }
 }
 
+pub trait CircuitBuilderWindowedMulG2<F: RichField + Extendable<D>, const D: usize> {
+    fn precompute_window_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> Vec<AffinePointTargetG2<FF>>;
+
+    fn random_access_curve_points_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        access_index: Target,
+        v: Vec<AffinePointTargetG2<FF>>,
+    ) -> AffinePointTargetG2<FF>;
+
+    fn if_affine_point_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        b: BoolTarget,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF>;
+
+    fn curve_scalar_mul_windowed_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        n: &NonNativeTarget<C::ScalarField>,
+    ) -> AffinePointTargetG2<FF>;
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderWindowedMulG2<F, D>
+    for CircuitBuilder<F, D>
+{
+    fn precompute_window_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> Vec<AffinePointTargetG2<FF>> {
+        let g = (CurveScalar(C::ScalarField::rand()) * C::GENERATOR_PROJECTIVE).to_affine();
+        let neg = {
+            let mut neg = g;
+            neg.y = -neg.y;
+            self.constant_affine_point_g2(neg)
+        };
+
+        let mut multiples = vec![self.constant_affine_point_g2(g)];
+        for i in 1..1 << WINDOW_SIZE {
+            multiples.push(self.curve_add_g2::<C, FF>(p, &multiples[i - 1]));
+        }
+        for i in 1..1 << WINDOW_SIZE {
+            multiples[i] = self.curve_add_g2::<C, FF>(&neg, &multiples[i]);
+        }
+        multiples
+    }
+
+    fn random_access_curve_points_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        access_index: Target,
+        v: Vec<AffinePointTargetG2<FF>>,
+    ) -> AffinePointTargetG2<FF> {
+        let num_limbs = C::BaseField::BITS / 32;
+        let zero = self.zero_u32();
+        let xx_limbs: Vec<Vec<_>> = (0..num_limbs)
+            .map(|i| {
+                v.iter()
+                    .map(|p| p.x.c0.value.limbs.get(i).unwrap_or(&zero).0)
+                    .collect()
+            })
+            .collect();
+        let xy_limbs: Vec<Vec<_>> = (0..num_limbs)
+            .map(|i| {
+                v.iter()
+                    .map(|p| p.x.c1.value.limbs.get(i).unwrap_or(&zero).0)
+                    .collect()
+            })
+            .collect();
+        let yx_limbs: Vec<Vec<_>> = (0..num_limbs)
+            .map(|i| {
+                v.iter()
+                    .map(|p| p.y.c0.value.limbs.get(i).unwrap_or(&zero).0)
+                    .collect()
+            })
+            .collect();
+        let yy_limbs: Vec<Vec<_>> = (0..num_limbs)
+            .map(|i| {
+                v.iter()
+                    .map(|p| p.y.c1.value.limbs.get(i).unwrap_or(&zero).0)
+                    .collect()
+            })
+            .collect();
+
+        let selected_xx_limbs: Vec<_> = xx_limbs
+            .iter()
+            .map(|limbs| U32Target(self.random_access(access_index, limbs.clone())))
+            .collect();
+        let selected_xy_limbs: Vec<_> = xy_limbs
+            .iter()
+            .map(|limbs| U32Target(self.random_access(access_index, limbs.clone())))
+            .collect();
+        let selected_yx_limbs: Vec<_> = yx_limbs
+            .iter()
+            .map(|limbs| U32Target(self.random_access(access_index, limbs.clone())))
+            .collect();
+        let selected_yy_limbs: Vec<_> = yy_limbs
+            .iter()
+            .map(|limbs| U32Target(self.random_access(access_index, limbs.clone())))
+            .collect();
+
+        let xx = NonNativeTarget {
+            value: BigUintTarget {
+                limbs: selected_xx_limbs,
+            },
+            _phantom: PhantomData,
+        };
+        let xy = NonNativeTarget {
+            value: BigUintTarget {
+                limbs: selected_xy_limbs,
+            },
+            _phantom: PhantomData,
+        };
+        let yx = NonNativeTarget {
+            value: BigUintTarget {
+                limbs: selected_yx_limbs,
+            },
+            _phantom: PhantomData,
+        };
+        let yy = NonNativeTarget {
+            value: BigUintTarget {
+                limbs: selected_yy_limbs,
+            },
+            _phantom: PhantomData,
+        };
+        AffinePointTargetG2 {
+            x: NonNativeTargetExt2 {
+                c0: xx,
+                c1: xy,
+                _phantom: PhantomData,
+            },
+            y: NonNativeTargetExt2 {
+                c0: yx,
+                c1: yy,
+                _phantom: PhantomData,
+            },
+        }
+    }
+
+    fn if_affine_point_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        b: BoolTarget,
+        p1: &AffinePointTargetG2<FF>,
+        p2: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF> {
+        let xx = self.if_nonnative(b, &p1.x.c0, &p2.x.c0);
+        let xy = self.if_nonnative(b, &p1.x.c1, &p2.x.c1);
+        let yx = self.if_nonnative(b, &p1.y.c0, &p2.y.c0);
+        let yy = self.if_nonnative(b, &p1.y.c1, &p2.y.c1);
+        AffinePointTargetG2 {
+            x: NonNativeTargetExt2 {
+                c0: xx,
+                c1: xy,
+                _phantom: PhantomData,
+            },
+            y: NonNativeTargetExt2 {
+                c0: yx,
+                c1: yy,
+                _phantom: PhantomData,
+            },
+        }
+    }
+
+    fn curve_scalar_mul_windowed_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+        n: &NonNativeTarget<C::ScalarField>,
+    ) -> AffinePointTargetG2<FF> {
+        let hash_0 = KeccakHash::<25>::hash_no_pad(&[F::ZERO]);
+        let hash_0_scalar = C::ScalarField::from_noncanonical_biguint(BigUint::from_bytes_le(
+            &GenericHashOut::<F>::to_bytes(&hash_0),
+        ));
+        let starting_point = CurveScalar(hash_0_scalar) * C::GENERATOR_PROJECTIVE;
+        let starting_point_multiplied = {
+            let mut cur = starting_point;
+            for _ in 0..C::ScalarField::BITS {
+                cur = cur.double();
+            }
+            cur
+        };
+
+        let mut result = self.constant_affine_point_g2(starting_point.to_affine());
+
+        let precomputation = self.precompute_window_g2::<C, FF>(p);
+        let zero = self.zero();
+
+        let windows = self.split_nonnative_to_4_bit_limbs(n);
+        for i in (0..windows.len()).rev() {
+            result = self.curve_repeated_double_g2::<C, FF>(&result, WINDOW_SIZE);
+            let window = windows[i];
+
+            let to_add =
+                self.random_access_curve_points_g2::<C, FF>(window, precomputation.clone());
+            let is_zero = self.is_equal(window, zero);
+            let should_add = self.not(is_zero);
+            result = self.curve_conditional_add_g2::<C, FF>(&result, &to_add, should_add);
+        }
+
+        let to_subtract =
+            self.constant_affine_point_g2::<C, FF>(starting_point_multiplied.to_affine());
+        let to_add = self.curve_neg_g2::<C, FF>(&to_subtract);
+        result = self.curve_add_g2::<C, FF>(&result, &to_add);
+
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use core::ops::Neg;
 
     use crate::curve::g1::G1;
+    use crate::curve::g2::G2;
+    use crate::field::bn128_base::Bn128Base;
     use crate::field::bn128_scalar::Bn128Scalar;
     use anyhow::Result;
     use log::{Level, LevelFilter};
@@ -247,6 +486,46 @@ mod tests {
         builder.curve_assert_valid(&neg_five_g_actual);
 
         builder.connect_affine_point(&neg_five_g_expected, &neg_five_g_actual);
+
+        let data = builder.build::<C>();
+        let timing = TimingTree::new("prove test_curve_windowed_mul", Level::Info);
+        let proof = data.prove(pw).unwrap();
+        timing.print();
+
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_curve_windowed_mul_g2() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g = (CurveScalar(Bn128Scalar::rand()) * G2::GENERATOR_PROJECTIVE).to_affine();
+        let five = Bn128Scalar::from_canonical_usize(5);
+        let neg_five = five.neg();
+        let neg_five_scalar = CurveScalar::<G2>(neg_five);
+        let neg_five_g = (neg_five_scalar * g.to_projective()).to_affine();
+        let neg_five_g_expected = builder.constant_affine_point_g2(neg_five_g);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&neg_five_g_expected);
+
+        let g_target = builder.constant_affine_point_g2(g);
+        let neg_five_target = builder.constant_nonnative(neg_five);
+        let neg_five_g_actual =
+            builder.curve_scalar_mul_windowed_g2::<G2, Bn128Base>(&g_target, &neg_five_target);
+        builder.curve_assert_valid_g2::<G2, Bn128Base>(&neg_five_g_actual);
+
+        builder.connect_affine_point_g2::<G2, Bn128Base>(&neg_five_g_expected, &neg_five_g_actual);
 
         let data = builder.build::<C>();
         let timing = TimingTree::new("prove test_curve_windowed_mul", Level::Info);
