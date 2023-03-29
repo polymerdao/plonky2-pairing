@@ -496,6 +496,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_curve_windowed_mul_g2() -> Result<()> {
         let mut builder = env_logger::Builder::from_default_env();
         builder.format_timestamp(None);

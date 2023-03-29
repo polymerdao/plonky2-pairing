@@ -17,6 +17,25 @@ pub struct AffinePointTargetG2<FF: Field> {
     pub y: NonNativeTargetExt2<FF>,
 }
 
+pub struct JacobianPointTargetG2<FF: Field> {
+    pub x: NonNativeTargetExt2<FF>,
+    pub y: NonNativeTargetExt2<FF>,
+    pub z: NonNativeTargetExt2<FF>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EllCoefficientsTarget<FF: Field> {
+    pub ell_0: NonNativeTargetExt2<FF>,
+    pub ell_vw: NonNativeTargetExt2<FF>,
+    pub ell_vv: NonNativeTargetExt2<FF>,
+}
+
+#[derive(Clone, Debug)]
+pub struct G2PreComputeTarget<FF: Field> {
+    pub q: AffinePointTargetG2<FF>,
+    pub coeffs: Vec<EllCoefficientsTarget<FF>>,
+}
+
 pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
     fn constant_affine_point_g2<
         C: Curve<BaseField = QuadraticExtension<FF>>,
@@ -105,6 +124,24 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         &mut self,
         p: &AffinePointTargetG2<FF>,
         n: &NonNativeTarget<C::ScalarField>,
+    ) -> AffinePointTargetG2<FF>;
+
+    fn precompute<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> G2PreComputeTarget<FF>;
+
+    fn to_jacobian_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> JacobianPointTargetG2<FF>;
+
+    fn to_affine_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p: &JacobianPointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
 }
 
@@ -328,6 +365,50 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         result = self.curve_add_g2::<C, FF>(&result, &neg_r);
 
         result
+    }
+
+    fn precompute<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> G2PreComputeTarget<FF> {
+        todo!()
+    }
+
+    fn to_jacobian_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> JacobianPointTargetG2<FF> {
+        JacobianPointTargetG2 {
+            x: p.x.clone(),
+            y: p.y.clone(),
+            z: self.constant_nonnative_ext2(QuadraticExtension::ONE),
+        }
+    }
+
+    fn to_affine_g2<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &JacobianPointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF> {
+        // TODO: temporary hack
+        if p.z.c1.value.limbs.len() == 0 {
+            return AffinePointTargetG2 {
+                x: p.x.clone(),
+                y: p.y.clone(),
+            };
+        }
+        let z_inv = self.inv_nonnative_ext2(&p.z);
+        let z_inv_squared = self.mul_nonnative_ext2(&z_inv, &z_inv);
+        let x = self.mul_nonnative_ext2(&p.x, &z_inv_squared);
+        let z_inv_cubed = self.mul_nonnative_ext2(&z_inv_squared, &z_inv);
+        let y = self.mul_nonnative_ext2(&p.y, &z_inv_cubed);
+
+        AffinePointTargetG2 { x, y }
     }
 }
 
