@@ -9,6 +9,13 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve, CurveScalar};
 use plonky2_field::types::{Field, PrimeField, Sample};
 
+const ATE_LOOP_COUNT: [u64; 4] = [
+    0x9d797039be763ba8,
+    0x0000000000000001,
+    0x0000000000000000,
+    0x0000000000000000,
+];
+
 /// A Target representing an affine point on the curve `C`. We use incomplete arithmetic for efficiency,
 /// so we assume these points are not zero.
 #[derive(Clone, Debug)]
@@ -142,6 +149,28 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
     fn to_affine_g2<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
         &mut self,
         p: &JacobianPointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF>;
+
+    fn doubling_step_for_flipped_miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &JacobianPointTargetG2<FF>,
+    ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>);
+
+    fn mixed_addition_step_for_flipped_miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        r: &JacobianPointTargetG2<FF>,
+        base: &AffinePointTargetG2<FF>,
+    ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>);
+
+    fn mul_by_q<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
 }
 
@@ -371,7 +400,46 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         &mut self,
         p: &AffinePointTargetG2<FF>,
     ) -> G2PreComputeTarget<FF> {
-        todo!()
+        let mut r = self.to_jacobian_g2::<C, FF>(p);
+        let mut coeffs = Vec::with_capacity(102);
+        let mut found_one = false;
+
+        for j in ATE_LOOP_COUNT.iter().rev() {
+            for i in (0..64).rev() {
+                if !found_one {
+                    // skips the first bit
+                    found_one = (j >> i) & 1 == 1;
+                    continue;
+                }
+
+                let (r0, coeff) = self.doubling_step_for_flipped_miller_loop::<C, FF>(&r);
+                r = r0;
+                coeffs.push(coeff);
+
+                if j >> i & 1 == 1 {
+                    let (r0, coeff) =
+                        self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, p);
+                    r = r0;
+                    coeffs.push(coeff);
+                }
+            }
+        }
+
+        let q1 = self.mul_by_q::<C, FF>(&p);
+        let mul_by_q = self.mul_by_q::<C, FF>(&p);
+        let q2 = self.curve_neg_g2::<C, FF>(&mul_by_q);
+
+        let (r0, coeff) = self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, &q1);
+        r = r0;
+        coeffs.push(coeff);
+        let (r0, coeff) = self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, &q2);
+        r = r0;
+        coeffs.push(coeff);
+
+        G2PreComputeTarget {
+            q: p.clone(),
+            coeffs,
+        }
     }
 
     fn to_jacobian_g2<
@@ -409,6 +477,34 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         let y = self.mul_nonnative_ext2(&p.y, &z_inv_cubed);
 
         AffinePointTargetG2 { x, y }
+    }
+
+    fn doubling_step_for_flipped_miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        p: &JacobianPointTargetG2<FF>,
+    ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>) {
+        todo!()
+    }
+
+    fn mixed_addition_step_for_flipped_miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2>,
+    >(
+        &mut self,
+        r: &JacobianPointTargetG2<FF>,
+        base: &AffinePointTargetG2<FF>,
+    ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>) {
+        todo!()
+    }
+
+    fn mul_by_q<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
+        &mut self,
+        p: &AffinePointTargetG2<FF>,
+    ) -> AffinePointTargetG2<FF> {
+        todo!()
     }
 }
 
