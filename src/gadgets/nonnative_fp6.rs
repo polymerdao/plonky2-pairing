@@ -70,7 +70,7 @@ pub trait CircuitBuilderNonNativeExt6<F: RichField + Extendable<D>, const D: usi
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF>;
 
-    fn square_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+    fn squared_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF>;
@@ -259,7 +259,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F
         }
     }
 
-    fn square_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+    fn squared_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF> {
@@ -445,7 +445,7 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative_ext6(x_ff);
-        let square_x = builder.square_nonnative_ext6(&x);
+        let square_x = builder.squared_nonnative_ext6(&x);
 
         let square_x_expected = builder.constant_nonnative_ext6(square_x_ff);
         builder.connect_nonnative_ext6(&square_x, &square_x_expected);
