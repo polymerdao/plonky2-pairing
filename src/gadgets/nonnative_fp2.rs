@@ -78,6 +78,11 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         x: &NonNativeTargetExt2<FF>,
         b: BoolTarget,
     ) -> NonNativeTargetExt2<FF>;
+
+    fn squared_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt2<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F, D>
@@ -237,6 +242,31 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
 
         self.add_nonnative_ext2(&x_if_true, &x_if_false)
     }
+
+    fn squared_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt2<FF> {
+        // Devegili OhEig Scott Dahab
+        //     Multiplication and Squaring on Pairing-Friendly Fields.pdf
+        //     Section 3 (Complex squaring)
+
+        let ab = self.mul_nonnative(&x.c0, &x.c1);
+        let c1 = self.add_nonnative(&ab, &ab);
+        let a_add_b = self.add_nonnative(&x.c0, &x.c1);
+        let b_mul_nonresidue = self.mul_by_nonresidue_nonnative(&x.c1);
+        let a_add_b_mul_nonresidue = self.add_nonnative(&x.c0, &b_mul_nonresidue);
+        let a_add_b_mul_nonresidue_mul_a_add_b =
+            self.mul_nonnative(&a_add_b, &a_add_b_mul_nonresidue);
+        let ab_mul_nonresidue = self.mul_by_nonresidue_nonnative(&ab);
+        let mut c0 = self.sub_nonnative(&a_add_b_mul_nonresidue_mul_a_add_b, &ab);
+        c0 = self.sub_nonnative(&c0, &ab_mul_nonresidue);
+        NonNativeTargetExt2 {
+            c0,
+            c1,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -249,6 +279,7 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2_field::ops::Square;
     use plonky2_field::types::{Field, Sample};
 
     #[test]
@@ -374,6 +405,30 @@ mod tests {
 
         let inv_x_expected = builder.constant_nonnative_ext2(inv_x_ff);
         builder.connect_nonnative_ext2(&inv_x, &inv_x_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_nonnative_ext2_square() -> Result<()> {
+        type FF = QuadraticExtension<Bn128Base>;
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let x_ff = FF::rand();
+        let square_x_ff = x_ff.square();
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext2(x_ff);
+        let square_x = builder.squared_nonnative_ext2(&x);
+
+        let square_x_expected = builder.constant_nonnative_ext2(square_x_ff);
+        builder.connect_nonnative_ext2(&square_x, &square_x_expected);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
