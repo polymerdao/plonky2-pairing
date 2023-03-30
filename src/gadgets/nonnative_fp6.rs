@@ -69,6 +69,11 @@ pub trait CircuitBuilderNonNativeExt6<F: RichField + Extendable<D>, const D: usi
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF>;
+
+    fn square_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+    ) -> NonNativeTargetExt6<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F, D>
@@ -208,22 +213,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F
         }
     }
 
-    // TODO: add square circuit
     fn inv_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF> {
-        let mut c0 = self.mul_nonnative_ext2(&x.c0, &x.c0);
+        let mut c0 = self.squared_nonnative_ext2(&x.c0);
         let x2_mul_nonresidue = self.mul_by_nonresidue_nonnative_ext2(&x.c2);
         let x1_mul_x2_mul_nonresidue = self.mul_nonnative_ext2(&x.c1, &x2_mul_nonresidue);
         c0 = self.sub_nonnative_ext2(&c0, &x1_mul_x2_mul_nonresidue);
 
-        let mut c1 = self.mul_nonnative_ext2(&x.c2, &x.c2);
+        let mut c1 = self.squared_nonnative_ext2(&x.c2);
         c1 = self.mul_by_nonresidue_nonnative_ext2(&c1);
         let x0_mul_x1 = self.mul_nonnative_ext2(&x.c0, &x.c1);
         c1 = self.sub_nonnative_ext2(&c1, &x0_mul_x1);
 
-        let mut c2 = self.mul_nonnative_ext2(&x.c1, &x.c1);
+        let mut c2 = self.squared_nonnative_ext2(&x.c1);
         let x0_mul_x2 = self.mul_nonnative_ext2(&x.c0, &x.c2);
         c2 = self.sub_nonnative_ext2(&c2, &x0_mul_x2);
 
@@ -254,6 +258,35 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F
             _phantom: PhantomData,
         }
     }
+
+    fn square_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+    ) -> NonNativeTargetExt6<FF> {
+        let s0 = self.squared_nonnative_ext2(&x.c0);
+        let ab = self.mul_nonnative_ext2(&x.c0, &x.c1);
+        let s1 = self.add_nonnative_ext2(&ab, &ab);
+        let mut s2 = self.sub_nonnative_ext2(&x.c0, &x.c1);
+        s2 = self.add_nonnative_ext2(&s2, &x.c2);
+        s2 = self.squared_nonnative_ext2(&s2);
+        let bc = self.mul_nonnative_ext2(&x.c1, &x.c2);
+        let s3 = self.add_nonnative_ext2(&bc, &bc);
+        let s4 = self.squared_nonnative_ext2(&x.c2);
+        let mut c0 = self.mul_by_nonresidue_nonnative_ext2(&s3);
+        c0 = self.add_nonnative_ext2(&s0, &c0);
+        let mut c1 = self.mul_by_nonresidue_nonnative_ext2(&s4);
+        c1 = self.add_nonnative_ext2(&s1, &c1);
+        let mut c2 = self.add_nonnative_ext2(&s1, &s2);
+        c2 = self.add_nonnative_ext2(&c2, &s3);
+        c2 = self.sub_nonnative_ext2(&c2, &s0);
+        c2 = self.sub_nonnative_ext2(&c2, &s4);
+        NonNativeTargetExt6 {
+            c0,
+            c1,
+            c2,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -266,6 +299,7 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2_field::ops::Square;
     use plonky2_field::types::{Field, Sample};
 
     #[test]
@@ -391,6 +425,30 @@ mod tests {
 
         let inv_x_expected = builder.constant_nonnative_ext6(inv_x_ff);
         builder.connect_nonnative_ext6(&inv_x, &inv_x_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_nonnative_ext6_square() -> Result<()> {
+        type FF = SexticExtension<Bn128Base>;
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let x_ff = FF::rand();
+        let square_x_ff = x_ff.square();
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext6(x_ff);
+        let square_x = builder.square_nonnative_ext6(&x);
+
+        let square_x_expected = builder.constant_nonnative_ext6(square_x_ff);
+        builder.connect_nonnative_ext6(&square_x, &square_x_expected);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
