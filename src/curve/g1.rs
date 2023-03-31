@@ -22,6 +22,7 @@ impl Curve for G1 {
         0x334bea4e696bd284,
         0x2a1f6744ce179d8e,
     ]);
+    const INV_TWO: Self::BaseField = todo!();
     const GENERATOR_AFFINE: AffinePoint<Self> = AffinePoint {
         x: BN128_GENERATOR_X,
         y: BN128_GENERATOR_Y,

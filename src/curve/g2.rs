@@ -32,6 +32,15 @@ impl Curve for G2 {
             0x0141b9ce4a688d4d,
         ]),
     ]);
+    const INV_TWO: Self::BaseField = QuadraticExtension::<Bn128Base>([
+        Bn128Base([
+            9781510331150239090,
+            15059239858463337189,
+            10331104244869713732,
+            2249375503248834476,
+        ]),
+        Bn128Base::ZERO,
+    ]);
     const GENERATOR_AFFINE: AffinePoint<Self> = AffinePoint {
         x: BN128G2_GENERATOR_X,
         y: BN128G2_GENERATOR_Y,

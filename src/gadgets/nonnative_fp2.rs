@@ -83,6 +83,12 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         &mut self,
         x: &NonNativeTargetExt2<FF>,
     ) -> NonNativeTargetExt2<FF>;
+
+    fn scale_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        scalar: &NonNativeTarget<FF>,
+    ) -> NonNativeTargetExt2<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F, D>
@@ -264,6 +270,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
         NonNativeTargetExt2 {
             c0,
             c1,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn scale_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        scalar: &NonNativeTarget<FF>,
+    ) -> NonNativeTargetExt2<FF> {
+        NonNativeTargetExt2 {
+            c0: self.mul_nonnative(&x.c0, scalar),
+            c1: self.mul_nonnative(&x.c1, scalar),
             _phantom: PhantomData,
         }
     }
