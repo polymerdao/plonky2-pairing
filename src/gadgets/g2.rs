@@ -592,7 +592,9 @@ mod tests {
     use crate::field::bn128_base::Bn128Base;
     use crate::field::bn128_scalar::Bn128Scalar;
     use crate::field::extension::quadratic::QuadraticExtension;
-    use crate::gadgets::g2::{AffinePointTargetG2, CircuitBuilderCurveG2, JacobianPointTargetG2};
+    use crate::gadgets::g2::{
+        AffinePointTargetG2, CircuitBuilderCurveG2, EllCoefficientsTarget, JacobianPointTargetG2,
+    };
     use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
     use crate::gadgets::nonnative_fp2::CircuitBuilderNonNativeExt2;
     use anyhow::Result;
@@ -859,6 +861,56 @@ mod tests {
             ])),
         };
         builder.connect_affine_point_g2::<G2, Bn128Base>(&q_expected, &g_precomputed.q);
+
+        let coeff_expected_0 = EllCoefficientsTarget {
+            ell_0: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    17277199671608171260,
+                    7534830700521395156,
+                    692817802423834870,
+                    2609448412801810189,
+                ]),
+                Bn128Base([
+                    5389190879121150457,
+                    187941817706892431,
+                    15071613302643113350,
+                    2419974544044211348,
+                ]),
+            ])),
+            ell_vw: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    9959532436991770898,
+                    5466377491755656191,
+                    10036095814240933200,
+                    942076927718101948,
+                ]),
+                Bn128Base([
+                    174183974755974056,
+                    18028730364581937563,
+                    3040980448889133225,
+                    580563103319692859,
+                ]),
+            ])),
+            ell_vv: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    7482695577452595874,
+                    12720915354587739233,
+                    15285336325258739141,
+                    1001890062562077930,
+                ]),
+                Bn128Base([
+                    5164457895468843746,
+                    1673172257038644379,
+                    1559362903759873829,
+                    248219913139546960,
+                ]),
+            ])),
+        };
+
+        builder.connect_nonnative_ext2(&coeff_expected_0.ell_0, &g_precomputed.coeffs[0].ell_0);
+        builder.connect_nonnative_ext2(&coeff_expected_0.ell_vw, &g_precomputed.coeffs[0].ell_vw);
+        builder.connect_nonnative_ext2(&coeff_expected_0.ell_vv, &g_precomputed.coeffs[0].ell_vv);
+
         assert_eq!(g_precomputed.coeffs.len(), 102);
 
         let data = builder.build::<C>();
