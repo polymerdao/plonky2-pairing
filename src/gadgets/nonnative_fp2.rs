@@ -89,6 +89,12 @@ pub trait CircuitBuilderNonNativeExt2<F: RichField + Extendable<D>, const D: usi
         x: &NonNativeTargetExt2<FF>,
         scalar: &NonNativeTarget<FF>,
     ) -> NonNativeTargetExt2<FF>;
+
+    fn frobenius_map_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt2<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F, D>
@@ -283,6 +289,22 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt2<F
             c0: self.mul_nonnative(&x.c0, scalar),
             c1: self.mul_nonnative(&x.c1, scalar),
             _phantom: PhantomData,
+        }
+    }
+
+    fn frobenius_map_nonnative_ext2<FF: PrimeField + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt2<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt2<FF> {
+        if power % 2 == 0 {
+            x.clone()
+        } else {
+            NonNativeTargetExt2 {
+                c0: x.c0.clone(),
+                c1: self.mul_by_nonresidue_nonnative(&x.c1),
+                _phantom: PhantomData,
+            }
         }
     }
 }

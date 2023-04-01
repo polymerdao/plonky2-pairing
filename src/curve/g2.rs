@@ -41,6 +41,34 @@ impl Curve for G2 {
         ]),
         Bn128Base::ZERO,
     ]);
+    const TWIST_MUL_BY_Q_X: Self::BaseField = QuadraticExtension::<Bn128Base>([
+        Bn128Base([
+            13075984984163199792,
+            3782902503040509012,
+            8791150885551868305,
+            1825854335138010348,
+        ]),
+        Bn128Base([
+            7963664994991228759,
+            12257807996192067905,
+            13179524609921305146,
+            2767831111890561987,
+        ]),
+    ]);
+    const TWIST_MUL_BY_Q_Y: Self::BaseField = QuadraticExtension::<Bn128Base>([
+        Bn128Base([
+            16482010305593259561,
+            13488546290961988299,
+            3578621962720924518,
+            2681173117283399901,
+        ]),
+        Bn128Base([
+            11661927080404088775,
+            553939530661941723,
+            7860678177968807019,
+            3208568454732775116,
+        ]),
+    ]);
     const GENERATOR_AFFINE: AffinePoint<Self> = AffinePoint {
         x: BN128G2_GENERATOR_X,
         y: BN128G2_GENERATOR_Y,

@@ -486,7 +486,48 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         &mut self,
         p: &JacobianPointTargetG2<FF>,
     ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>) {
-        todo!()
+        let two_inv = self.constant_nonnative(C::INV_TWO.0[0]);
+        let mut a = self.mul_nonnative_ext2(&p.x, &p.y);
+        a = self.scale_nonnative_ext2(&a, &two_inv);
+        let b = self.squared_nonnative_ext2(&p.y);
+        let c = self.squared_nonnative_ext2(&p.z);
+        let mut d = self.add_nonnative_ext2(&c, &c);
+        d = self.add_nonnative_ext2(&d, &c);
+        let mut e = self.constant_nonnative_ext2(C::B);
+        e = self.mul_nonnative_ext2(&e, &d);
+        let mut f = self.add_nonnative_ext2(&e, &e);
+        f = self.add_nonnative_ext2(&f, &e);
+        let mut g = self.add_nonnative_ext2(&b, &f);
+        g = self.scale_nonnative_ext2(&g, &two_inv);
+        let mut h = self.add_nonnative_ext2(&p.y, &p.z);
+        h = self.squared_nonnative_ext2(&h);
+        h = self.sub_nonnative_ext2(&h, &b);
+        h = self.sub_nonnative_ext2(&h, &c);
+        let mut i = self.sub_nonnative_ext2(&e, &b);
+        let j = self.squared_nonnative_ext2(&p.x);
+        let e_sq = self.squared_nonnative_ext2(&e);
+
+        let mut x = self.sub_nonnative_ext2(&b, &f);
+        x = self.mul_nonnative_ext2(&a, &x);
+        let mut y = self.squared_nonnative_ext2(&g);
+        let mut e_sq_3 = self.add_nonnative_ext2(&e_sq, &e_sq);
+        e_sq_3 = self.add_nonnative_ext2(&e_sq_3, &e_sq);
+        y = self.sub_nonnative_ext2(&y, &e_sq_3);
+        let z = self.mul_nonnative_ext2(&b, &h);
+
+        let ell_0 = self.mul_by_nonresidue_nonnative_ext2(&i);
+        let ell_vw = self.neg_nonnative_ext2(&h);
+        let mut ell_vv = self.add_nonnative_ext2(&j, &j);
+        ell_vv = self.add_nonnative_ext2(&ell_vv, &j);
+
+        (
+            JacobianPointTargetG2 { x, y, z },
+            EllCoefficientsTarget {
+                ell_0,
+                ell_vw,
+                ell_vv,
+            },
+        )
     }
 
     fn mixed_addition_step_for_flipped_miller_loop<
@@ -497,14 +538,52 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         r: &JacobianPointTargetG2<FF>,
         base: &AffinePointTargetG2<FF>,
     ) -> (JacobianPointTargetG2<FF>, EllCoefficientsTarget<FF>) {
-        todo!()
+        let mut d = self.mul_nonnative_ext2(&r.z, &base.x);
+        d = self.sub_nonnative_ext2(&r.x, &d);
+        let mut e = self.mul_nonnative_ext2(&r.z, &base.y);
+        e = self.sub_nonnative_ext2(&r.y, &e);
+        let f = self.squared_nonnative_ext2(&d);
+        let g = self.squared_nonnative_ext2(&e);
+        let h = self.mul_nonnative_ext2(&d, &f);
+        let i = self.mul_nonnative_ext2(&r.x, &f);
+        let mut j = self.mul_nonnative_ext2(&r.z, &g);
+        j = self.add_nonnative_ext2(&j, &h);
+        j = self.sub_nonnative_ext2(&j, &i);
+        j = self.sub_nonnative_ext2(&j, &i);
+        let x = self.mul_nonnative_ext2(&d, &j);
+        let mut y = self.sub_nonnative_ext2(&i, &j);
+        y = self.mul_nonnative_ext2(&e, &y);
+        let h_y = self.mul_nonnative_ext2(&h, &r.y);
+        y = self.sub_nonnative_ext2(&y, &h_y);
+        let z = self.mul_nonnative_ext2(&r.z, &h);
+        let e_x = self.mul_nonnative_ext2(&e, &base.x);
+        let d_y = self.mul_nonnative_ext2(&d, &base.y);
+        let mut ell_0 = self.sub_nonnative_ext2(&e_x, &d_y);
+        ell_0 = self.mul_by_nonresidue_nonnative_ext2(&ell_0);
+        let ell_vv = self.neg_nonnative_ext2(&e);
+        let ell_vw = d;
+        (
+            JacobianPointTargetG2 { x, y, z },
+            EllCoefficientsTarget {
+                ell_0,
+                ell_vv,
+                ell_vw,
+            },
+        )
     }
 
     fn mul_by_q<C: Curve<BaseField = QuadraticExtension<FF>>, FF: PrimeField + Extendable<2>>(
         &mut self,
         p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF> {
-        todo!()
+        let x_frobenius = self.frobenius_map_nonnative_ext2(&p.x, 1);
+        let y_frobenius = self.frobenius_map_nonnative_ext2(&p.y, 1);
+        let twist_mul_by_q_x = self.constant_nonnative_ext2(C::TWIST_MUL_BY_Q_X);
+        let twist_mul_by_q_y = self.constant_nonnative_ext2(C::TWIST_MUL_BY_Q_Y);
+        AffinePointTargetG2 {
+            x: self.mul_nonnative_ext2(&twist_mul_by_q_x, &x_frobenius),
+            y: self.mul_nonnative_ext2(&twist_mul_by_q_y, &y_frobenius),
+        }
     }
 }
 
@@ -514,8 +593,9 @@ mod tests {
     use crate::field::bn128_base::Bn128Base;
     use crate::field::bn128_scalar::Bn128Scalar;
     use crate::field::extension::quadratic::QuadraticExtension;
-    use crate::gadgets::g2::CircuitBuilderCurveG2;
+    use crate::gadgets::g2::{AffinePointTargetG2, CircuitBuilderCurveG2, JacobianPointTargetG2};
     use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
+    use crate::gadgets::nonnative_fp2::CircuitBuilderNonNativeExt2;
     use anyhow::Result;
     use log::LevelFilter;
     use plonky2::iop::witness::PartialWitness;
@@ -678,6 +758,109 @@ mod tests {
         builder.curve_assert_valid_g2::<G2, Bn128Base>(&neg_five_g_actual);
 
         builder.connect_affine_point_g2::<G2, Bn128Base>(&neg_five_g_expected, &neg_five_g_actual);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_precompute() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g = JacobianPointTargetG2 {
+            x: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    2577798519503118397,
+                    14034210771057369560,
+                    14798801535089424299,
+                    1731240919448670153,
+                ]),
+                Bn128Base([
+                    15909499412933957829,
+                    12344152745192254056,
+                    1185193310574937231,
+                    760964259656302494,
+                ]),
+            ])),
+            y: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    16827884672622421998,
+                    756648877887862755,
+                    18069298113966277418,
+                    2110768940310013157,
+                ]),
+                Bn128Base([
+                    12195099017078129020,
+                    6997443175976044100,
+                    15957581681657247863,
+                    752644145961255405,
+                ]),
+            ])),
+            z: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    12079780699228388722,
+                    791215766957020566,
+                    2914756960274132770,
+                    2602717870663046513,
+                ]),
+                Bn128Base([
+                    12691905162280913768,
+                    89920551545646552,
+                    12941976487854615151,
+                    2355989044724612682,
+                ]),
+            ])),
+        };
+        let g_affine = builder.to_affine_g2::<G2, Bn128Base>(&g);
+
+        let g_precomputed = builder.precompute::<G2, Bn128Base>(&g_affine);
+
+        let q_expected = AffinePointTargetG2 {
+            x: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    11006543346086653583,
+                    6918991450089238666,
+                    18279842395430417956,
+                    1732640417518178472,
+                ]),
+                Bn128Base([
+                    11517548492582810861,
+                    9169073428047311021,
+                    9099478545610137041,
+                    2335497441439112195,
+                ]),
+            ])),
+            y: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    8576222689638546622,
+                    8183935398600054925,
+                    8263144044154228149,
+                    3015959802943919691,
+                ]),
+                Bn128Base([
+                    13468896920756445043,
+                    11126130999041690047,
+                    2537329689975352328,
+                    3196716715143124236,
+                ]),
+            ])),
+        };
+        builder.connect_affine_point_g2::<G2, Bn128Base>(&q_expected, &g_precomputed.q);
+        assert_eq!(g_precomputed.coeffs.len(), 102);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
