@@ -416,7 +416,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
                 r = r0;
                 coeffs.push(coeff);
 
-                if j >> i & 1 == 1 {
+                if (j >> i) & 1 == 1 {
                     let (r0, coeff) =
                         self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, p);
                     r = r0;
@@ -432,8 +432,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         let (r0, coeff) = self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, &q1);
         r = r0;
         coeffs.push(coeff);
-        let (r0, coeff) = self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, &q2);
-        r = r0;
+        let (_, coeff) = self.mixed_addition_step_for_flipped_miller_loop::<C, FF>(&r, &q2);
         coeffs.push(coeff);
 
         G2PreComputeTarget {
@@ -503,7 +502,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
         h = self.squared_nonnative_ext2(&h);
         h = self.sub_nonnative_ext2(&h, &b);
         h = self.sub_nonnative_ext2(&h, &c);
-        let mut i = self.sub_nonnative_ext2(&e, &b);
+        let i = self.sub_nonnative_ext2(&e, &b);
         let j = self.squared_nonnative_ext2(&p.x);
         let e_sq = self.squared_nonnative_ext2(&e);
 
