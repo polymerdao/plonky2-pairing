@@ -911,6 +911,60 @@ mod tests {
         builder.connect_nonnative_ext2(&coeff_expected_0.ell_vw, &g_precomputed.coeffs[0].ell_vw);
         builder.connect_nonnative_ext2(&coeff_expected_0.ell_vv, &g_precomputed.coeffs[0].ell_vv);
 
+        let coeff_expected_101 = EllCoefficientsTarget {
+            ell_0: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    17085172404633693200,
+                    10630938209732224048,
+                    1371020573765003243,
+                    1028232206131360563,
+                ]),
+                Bn128Base([
+                    12232876582152898836,
+                    767314283470872833,
+                    15772841601744581597,
+                    128106244370315677,
+                ]),
+            ])),
+            ell_vw: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    13268268652402041517,
+                    413782302065018431,
+                    10641674370522314647,
+                    1317742553538815291,
+                ]),
+                Bn128Base([
+                    7340261005993041334,
+                    12959011140836651059,
+                    6312169946649546817,
+                    2020346702179008593,
+                ]),
+            ])),
+            ell_vv: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    17214549829497107128,
+                    6367600020633491639,
+                    4118147622849011930,
+                    2701443844605818879,
+                ]),
+                Bn128Base([
+                    9678615892898801219,
+                    15105284796503706066,
+                    15218042156631491887,
+                    2386565019544464078,
+                ]),
+            ])),
+        };
+        builder.connect_nonnative_ext2(&coeff_expected_101.ell_0, &g_precomputed.coeffs[101].ell_0);
+        builder.connect_nonnative_ext2(
+            &coeff_expected_101.ell_vw,
+            &g_precomputed.coeffs[101].ell_vw,
+        );
+        builder.connect_nonnative_ext2(
+            &coeff_expected_101.ell_vv,
+            &g_precomputed.coeffs[101].ell_vv,
+        );
+
         assert_eq!(g_precomputed.coeffs.len(), 102);
 
         let data = builder.build::<C>();
