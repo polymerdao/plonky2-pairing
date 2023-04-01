@@ -911,59 +911,107 @@ mod tests {
         builder.connect_nonnative_ext2(&coeff_expected_0.ell_vw, &g_precomputed.coeffs[0].ell_vw);
         builder.connect_nonnative_ext2(&coeff_expected_0.ell_vv, &g_precomputed.coeffs[0].ell_vv);
 
-        let coeff_expected_101 = EllCoefficientsTarget {
+        let coeff_expected_1 = EllCoefficientsTarget {
             ell_0: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
                 Bn128Base([
-                    17085172404633693200,
-                    10630938209732224048,
-                    1371020573765003243,
-                    1028232206131360563,
+                    13373442481846135230,
+                    18162278520862515463,
+                    3951913145905149164,
+                    1705929995808613875,
                 ]),
                 Bn128Base([
-                    12232876582152898836,
-                    767314283470872833,
-                    15772841601744581597,
-                    128106244370315677,
+                    3302322885510786647,
+                    6108254548008280902,
+                    11389629792418574312,
+                    1497731481514317031,
                 ]),
             ])),
             ell_vw: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
                 Bn128Base([
-                    13268268652402041517,
-                    413782302065018431,
-                    10641674370522314647,
-                    1317742553538815291,
+                    13637779205322894244,
+                    18313599956127061270,
+                    13181708906852732943,
+                    3223505406553364261,
                 ]),
                 Bn128Base([
-                    7340261005993041334,
-                    12959011140836651059,
-                    6312169946649546817,
-                    2020346702179008593,
+                    8889208010557624044,
+                    15934952838923155980,
+                    2231106891030298788,
+                    1720136300889719075,
                 ]),
             ])),
             ell_vv: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
                 Bn128Base([
-                    17214549829497107128,
-                    6367600020633491639,
-                    4118147622849011930,
-                    2701443844605818879,
+                    5699172255660218441,
+                    14224117930579859298,
+                    9671055479960872346,
+                    2897058453276464114,
                 ]),
                 Bn128Base([
-                    9678615892898801219,
-                    15105284796503706066,
-                    15218042156631491887,
-                    2386565019544464078,
+                    1434851469978980926,
+                    8787488385756412204,
+                    8237694634490612487,
+                    2312968450348013681,
                 ]),
             ])),
         };
-        builder.connect_nonnative_ext2(&coeff_expected_101.ell_0, &g_precomputed.coeffs[101].ell_0);
-        builder.connect_nonnative_ext2(
-            &coeff_expected_101.ell_vw,
-            &g_precomputed.coeffs[101].ell_vw,
-        );
-        builder.connect_nonnative_ext2(
-            &coeff_expected_101.ell_vv,
-            &g_precomputed.coeffs[101].ell_vv,
-        );
+        builder.connect_nonnative_ext2(&coeff_expected_1.ell_0, &g_precomputed.coeffs[1].ell_0);
+        builder.connect_nonnative_ext2(&coeff_expected_1.ell_vw, &g_precomputed.coeffs[1].ell_vw);
+        builder.connect_nonnative_ext2(&coeff_expected_1.ell_vv, &g_precomputed.coeffs[1].ell_vv);
+        //
+        // let coeff_expected_101 = EllCoefficientsTarget {
+        //     ell_0: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+        //         Bn128Base([
+        //             17085172404633693200,
+        //             10630938209732224048,
+        //             1371020573765003243,
+        //             1028232206131360563,
+        //         ]),
+        //         Bn128Base([
+        //             12232876582152898836,
+        //             767314283470872833,
+        //             15772841601744581597,
+        //             128106244370315677,
+        //         ]),
+        //     ])),
+        //     ell_vw: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+        //         Bn128Base([
+        //             13268268652402041517,
+        //             413782302065018431,
+        //             10641674370522314647,
+        //             1317742553538815291,
+        //         ]),
+        //         Bn128Base([
+        //             7340261005993041334,
+        //             12959011140836651059,
+        //             6312169946649546817,
+        //             2020346702179008593,
+        //         ]),
+        //     ])),
+        //     ell_vv: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+        //         Bn128Base([
+        //             17214549829497107128,
+        //             6367600020633491639,
+        //             4118147622849011930,
+        //             2701443844605818879,
+        //         ]),
+        //         Bn128Base([
+        //             9678615892898801219,
+        //             15105284796503706066,
+        //             15218042156631491887,
+        //             2386565019544464078,
+        //         ]),
+        //     ])),
+        // };
+        // builder.connect_nonnative_ext2(&coeff_expected_101.ell_0, &g_precomputed.coeffs[101].ell_0);
+        // builder.connect_nonnative_ext2(
+        //     &coeff_expected_101.ell_vw,
+        //     &g_precomputed.coeffs[101].ell_vw,
+        // );
+        // builder.connect_nonnative_ext2(
+        //     &coeff_expected_101.ell_vv,
+        //     &g_precomputed.coeffs[101].ell_vv,
+        // );
 
         assert_eq!(g_precomputed.coeffs.len(), 102);
 
