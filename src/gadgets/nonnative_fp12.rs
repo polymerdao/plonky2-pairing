@@ -1,5 +1,6 @@
 use crate::field::extension::dodecic::DodecicExtension;
 use crate::field::extension::sextic::SexticExtension;
+use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTargetExt2};
 use crate::gadgets::nonnative_fp6::{CircuitBuilderNonNativeExt6, NonNativeTargetExt6};
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -69,6 +70,14 @@ pub trait CircuitBuilderNonNativeExt12<F: RichField + Extendable<D>, const D: us
     fn squared_nonnative_ext12<FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>>(
         &mut self,
         x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn mul_by_024<FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+        ell_0: &NonNativeTargetExt2<FF>,
+        ell_vw: &NonNativeTargetExt2<FF>,
+        ell_vv: &NonNativeTargetExt2<FF>,
     ) -> NonNativeTargetExt12<FF>;
 }
 
@@ -213,6 +222,101 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         NonNativeTargetExt12 {
             c0,
             c1,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn mul_by_024<FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+        ell_0: &NonNativeTargetExt2<FF>,
+        ell_vw: &NonNativeTargetExt2<FF>,
+        ell_vv: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        let z0 = x.c0.c0.clone();
+        let z1 = x.c0.c1.clone();
+        let z2 = x.c0.c2.clone();
+        let z3 = x.c1.c0.clone();
+        let z4 = x.c1.c1.clone();
+        let z5 = x.c1.c2.clone();
+
+        let x0 = ell_0.clone();
+        let x2 = ell_vv.clone();
+        let x4 = ell_vw.clone();
+
+        let d0 = self.mul_nonnative_ext2(&z0, &x0);
+        let d2 = self.mul_nonnative_ext2(&z2, &x2);
+        let d4 = self.mul_nonnative_ext2(&z4, &x4);
+        let t2 = self.add_nonnative_ext2(&z0, &z4);
+        let t1 = self.add_nonnative_ext2(&z0, &z2);
+        let mut s0 = self.add_nonnative_ext2(&z1, &z3);
+        s0 = self.add_nonnative_ext2(&s0, &z5);
+
+        let s1 = self.mul_nonnative_ext2(&z1, &x2);
+        let t3 = self.add_nonnative_ext2(&s1, &d4);
+        let mut t4 = self.mul_by_nonresidue_nonnative_ext2(&t3);
+        t4 = self.add_nonnative_ext2(&t4, &d0);
+        let z0 = t4;
+
+        let t3 = self.mul_nonnative_ext2(&z5, &x4);
+        let s1 = self.add_nonnative_ext2(&s1, &t3);
+        let t3 = self.add_nonnative_ext2(&t3, &d2);
+        let t4 = self.mul_by_nonresidue_nonnative_ext2(&t3);
+        let t3 = self.mul_nonnative_ext2(&z1, &x0);
+        let s1 = self.add_nonnative_ext2(&s1, &t3);
+        let t4 = self.add_nonnative_ext2(&t4, &t3);
+        let z1 = t4;
+
+        let t0 = self.add_nonnative_ext2(&x0, &x2);
+        let mut t3 = self.mul_nonnative_ext2(&t1, &t0);
+        t3 = self.sub_nonnative_ext2(&t3, &d0);
+        t3 = self.sub_nonnative_ext2(&t3, &d2);
+        let t4 = self.mul_nonnative_ext2(&z3, &x4);
+        let s1 = self.add_nonnative_ext2(&s1, &t4);
+        let t3 = self.add_nonnative_ext2(&t3, &t4);
+
+        let t0 = self.add_nonnative_ext2(&z2, &z4);
+        let z2 = t3;
+
+        let t1 = self.add_nonnative_ext2(&x2, &x4);
+        let mut t3 = self.mul_nonnative_ext2(&t0, &t1);
+        t3 = self.sub_nonnative_ext2(&t3, &d2);
+        t3 = self.sub_nonnative_ext2(&t3, &d4);
+        let t4 = self.mul_by_nonresidue_nonnative_ext2(&t3);
+        let t3 = self.mul_nonnative_ext2(&z3, &x0);
+        let mut s1 = self.add_nonnative_ext2(&s1, &t3);
+        let t4 = self.add_nonnative_ext2(&t4, &t3);
+        let z3 = t4;
+
+        let t3 = self.mul_nonnative_ext2(&z5, &x2);
+        let s1 = self.add_nonnative_ext2(&s1, &t3);
+        let t4 = self.mul_by_nonresidue_nonnative_ext2(&t3);
+        let t0 = self.add_nonnative_ext2(&x0, &x4);
+        let mut t3 = self.mul_nonnative_ext2(&t2, &t0);
+        t3 = self.sub_nonnative_ext2(&t3, &d0);
+        t3 = self.sub_nonnative_ext2(&t3, &d4);
+        let t4 = self.add_nonnative_ext2(&t4, &t3);
+        let z4 = t4;
+
+        let mut t0 = self.add_nonnative_ext2(&x0, &x2);
+        t0 = self.add_nonnative_ext2(&t0, &x4);
+        let mut t3 = self.mul_nonnative_ext2(&s0, &t0);
+        t3 = self.sub_nonnative_ext2(&t3, &s1);
+        let z5 = t3;
+
+        NonNativeTargetExt12 {
+            c0: NonNativeTargetExt6 {
+                c0: z0,
+                c1: z1,
+                c2: z2,
+                _phantom: PhantomData,
+            },
+            c1: NonNativeTargetExt6 {
+                c0: z3,
+                c1: z4,
+                c2: z5,
+                _phantom: PhantomData,
+            },
             _phantom: PhantomData,
         }
     }

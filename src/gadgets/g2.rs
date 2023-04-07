@@ -1,5 +1,7 @@
 use crate::field::extension::quadratic::QuadraticExtension;
+use crate::gadgets::g1::AffinePointTarget;
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
+use crate::gadgets::nonnative_fp12::NonNativeTargetExt12;
 use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTargetExt2};
 use core::fmt::Debug;
 use plonky2::field::extension::Extendable;
@@ -172,6 +174,15 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
         &mut self,
         p: &AffinePointTargetG2<FF>,
     ) -> AffinePointTargetG2<FF>;
+
+    fn miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2> + Curve,
+    >(
+        &mut self,
+        g1: &AffinePointTarget<FF>,
+        precomp: &G2PreComputeTarget<FF>,
+    ) -> NonNativeTargetExt12<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
@@ -583,6 +594,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
             x: self.mul_nonnative_ext2(&twist_mul_by_q_x, &x_frobenius),
             y: self.mul_nonnative_ext2(&twist_mul_by_q_y, &y_frobenius),
         }
+    }
+
+    fn miller_loop<
+        C: Curve<BaseField = QuadraticExtension<FF>>,
+        FF: PrimeField + Extendable<2> + Curve,
+    >(
+        &mut self,
+        g1: &AffinePointTarget<FF>,
+        precomp: &G2PreComputeTarget<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        todo!()
     }
 }
 
