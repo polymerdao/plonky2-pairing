@@ -1,15 +1,17 @@
 use crate::field::extension::quadratic::QuadraticExtension;
 use crate::gadgets::g1::AffinePointTarget;
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
-use crate::gadgets::nonnative_fp12::NonNativeTargetExt12;
+use crate::gadgets::nonnative_fp12::{CircuitBuilderNonNativeExt12, NonNativeTargetExt12};
 use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTargetExt2};
 use core::fmt::Debug;
+use num::One;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve, CurveScalar};
 use plonky2_field::types::{Field, PrimeField, Sample};
+use crate::field::extension::dodecic::DodecicExtension;
 
 const ATE_LOOP_COUNT: [u64; 4] = [
     0x9d797039be763ba8,
@@ -176,11 +178,11 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
     ) -> AffinePointTargetG2<FF>;
 
     fn miller_loop<
-        C: Curve<BaseField = QuadraticExtension<FF>>,
-        FF: PrimeField + Extendable<2> + Curve,
+        C: Curve<BaseField = FF>,
+        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12> + Curve,
     >(
         &mut self,
-        g1: &AffinePointTarget<FF>,
+        g1: &AffinePointTarget<C>,
         precomp: &G2PreComputeTarget<FF>,
     ) -> NonNativeTargetExt12<FF>;
 }
@@ -597,14 +599,54 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
     }
 
     fn miller_loop<
-        C: Curve<BaseField = QuadraticExtension<FF>>,
-        FF: PrimeField + Extendable<2> + Curve,
+        C: Curve<BaseField = FF>,
+        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12> + Curve,
     >(
         &mut self,
-        g1: &AffinePointTarget<FF>,
+        g1: &AffinePointTarget<C>,
         precomp: &G2PreComputeTarget<FF>,
     ) -> NonNativeTargetExt12<FF> {
-        todo!()
+        let mut f = self.constant_nonnative_ext12(DodecicExtension::ONE);
+        let mut idx = 0;
+        let mut found_one = false;
+
+        for j in ATE_LOOP_COUNT.iter().rev() {
+            for i in (0..64).rev() {
+                if !found_one {
+                    // skips the first bit
+                    found_one = (j >> i) & 1 == 1;
+                    continue;
+                }
+
+                let c = &precomp.coeffs[idx];
+                idx += 1;
+                f = self.squared_nonnative_ext12(&f);
+                let ell_vw = self.scale_nonnative_ext2(&c.ell_vw, &g1.y);
+                let ell_vv = self.scale_nonnative_ext2(&c.ell_vv, &g1.x);
+                f = self.mul_by_024(&f, &c.ell_0, &ell_vw, &ell_vv);
+
+                if (j >> i) & 1 == 1 {
+                    let c = &precomp.coeffs[idx];
+                    idx += 1;
+                    let ell_vw = self.scale_nonnative_ext2(&c.ell_vw, &g1.y);
+                    let ell_vv = self.scale_nonnative_ext2(&c.ell_vv, &g1.x);
+                    f = self.mul_by_024(&f, &c.ell_0, &ell_vw, &ell_vv);
+                }
+            }
+        }
+
+        let c = &precomp.coeffs[idx];
+        idx += 1;
+        let ell_vw = self.scale_nonnative_ext2(&c.ell_vw, &g1.y);
+        let ell_vv = self.scale_nonnative_ext2(&c.ell_vv, &g1.x);
+        f = self.mul_by_024(&f, &c.ell_0, &ell_vw, &ell_vv);
+
+        let c = &precomp.coeffs[idx];
+        let ell_vw = self.scale_nonnative_ext2(&c.ell_vw, &g1.y);
+        let ell_vv = self.scale_nonnative_ext2(&c.ell_vv, &g1.x);
+        f = self.mul_by_024(&f, &c.ell_0, &ell_vw, &ell_vv);
+
+        f
     }
 }
 
