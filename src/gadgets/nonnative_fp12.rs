@@ -284,7 +284,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         t3 = self.sub_nonnative_ext2(&t3, &d4);
         let t4 = self.mul_by_nonresidue_nonnative_ext2(&t3);
         let t3 = self.mul_nonnative_ext2(&z3, &x0);
-        let mut s1 = self.add_nonnative_ext2(&s1, &t3);
+        let s1 = self.add_nonnative_ext2(&s1, &t3);
         let t4 = self.add_nonnative_ext2(&t4, &t3);
         let z3 = t4;
 

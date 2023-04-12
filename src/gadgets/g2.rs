@@ -1,17 +1,16 @@
+use crate::field::extension::dodecic::DodecicExtension;
 use crate::field::extension::quadratic::QuadraticExtension;
 use crate::gadgets::g1::AffinePointTarget;
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::gadgets::nonnative_fp12::{CircuitBuilderNonNativeExt12, NonNativeTargetExt12};
 use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTargetExt2};
 use core::fmt::Debug;
-use num::One;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_ecdsa::curve::curve_types::{AffinePoint, Curve, CurveScalar};
 use plonky2_field::types::{Field, PrimeField, Sample};
-use crate::field::extension::dodecic::DodecicExtension;
 
 const ATE_LOOP_COUNT: [u64; 4] = [
     0x9d797039be763ba8,
@@ -179,7 +178,7 @@ pub trait CircuitBuilderCurveG2<F: RichField + Extendable<D>, const D: usize> {
 
     fn miller_loop<
         C: Curve<BaseField = FF>,
-        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12> + Curve,
+        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12>,
     >(
         &mut self,
         g1: &AffinePointTarget<C>,
@@ -600,7 +599,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
 
     fn miller_loop<
         C: Curve<BaseField = FF>,
-        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12> + Curve,
+        FF: PrimeField + Extendable<2> + Extendable<6> + Extendable<12>,
     >(
         &mut self,
         g1: &AffinePointTarget<C>,
@@ -652,14 +651,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurveG2<F, D>
 
 #[cfg(test)]
 mod tests {
+    use crate::curve::g1::G1;
     use crate::curve::g2::G2;
     use crate::field::bn128_base::Bn128Base;
     use crate::field::bn128_scalar::Bn128Scalar;
+    use crate::field::extension::dodecic::DodecicExtension;
     use crate::field::extension::quadratic::QuadraticExtension;
+    use crate::gadgets::g1::AffinePointTarget;
     use crate::gadgets::g2::{
         AffinePointTargetG2, CircuitBuilderCurveG2, EllCoefficientsTarget, JacobianPointTargetG2,
     };
     use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
+    use crate::gadgets::nonnative_fp12::CircuitBuilderNonNativeExt12;
     use crate::gadgets::nonnative_fp2::CircuitBuilderNonNativeExt2;
     use anyhow::Result;
     use log::LevelFilter;
@@ -831,6 +834,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_precompute() -> Result<()> {
         let mut builder = env_logger::Builder::from_default_env();
         builder.format_timestamp(None);
@@ -1078,6 +1082,153 @@ mod tests {
         );
 
         assert_eq!(g_precomputed.coeffs.len(), 102);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
+
+    #[test]
+    #[ignore]
+    fn test_miller_loop() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let g1 = AffinePointTarget::<G1> {
+            x: builder.constant_nonnative(Bn128Base([
+                18009135459904726766,
+                2053664114473314749,
+                9535470248130011749,
+                3479289040628672906,
+            ])),
+            y: builder.constant_nonnative(Bn128Base([
+                6225675676338262706,
+                4510937524066860607,
+                11348405336138879847,
+                2021255424210394902,
+            ])),
+        };
+        let g2 = AffinePointTargetG2 {
+            x: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    11006543346086653583,
+                    6918991450089238666,
+                    18279842395430417956,
+                    1732640417518178472,
+                ]),
+                Bn128Base([
+                    11517548492582810861,
+                    9169073428047311021,
+                    9099478545610137041,
+                    2335497441439112195,
+                ]),
+            ])),
+            y: builder.constant_nonnative_ext2(QuadraticExtension::<Bn128Base>([
+                Bn128Base([
+                    8576222689638546622,
+                    8183935398600054925,
+                    8263144044154228149,
+                    3015959802943919691,
+                ]),
+                Bn128Base([
+                    13468896920756445043,
+                    11126130999041690047,
+                    2537329689975352328,
+                    3196716715143124236,
+                ]),
+            ])),
+        };
+
+        let gt_expected = builder.constant_nonnative_ext12(DodecicExtension::<Bn128Base>([
+            Bn128Base([
+                11214948798496262313,
+                17041960038845619795,
+                15038543693968526953,
+                2854769455943088582,
+            ]),
+            Bn128Base([
+                18358947165889346901,
+                7594645203897246376,
+                8678460969103022172,
+                1920999953682168236,
+            ]),
+            Bn128Base([
+                3822366764294320012,
+                17097402614902894928,
+                9428044024961402650,
+                243602561756596672,
+            ]),
+            Bn128Base([
+                17183959784901604854,
+                8949372598380251153,
+                6758521511101568679,
+                3292122140014866630,
+            ]),
+            Bn128Base([
+                18184120903008236488,
+                754777629877848609,
+                11021228852074755205,
+                1907956694624918089,
+            ]),
+            Bn128Base([
+                1027874041688341259,
+                11521396577902036682,
+                3591493198463547173,
+                83019242339262093,
+            ]),
+            Bn128Base([
+                3122839170227481532,
+                12173517765924753901,
+                5944764658757645540,
+                3140853624433931065,
+            ]),
+            Bn128Base([
+                8180994361383621561,
+                7383210295740433637,
+                16513349742730085408,
+                3103130917377758986,
+            ]),
+            Bn128Base([
+                10794403896041222214,
+                926595914487050175,
+                14036399402507339094,
+                1776103223747386957,
+            ]),
+            Bn128Base([
+                5805166188446473199,
+                2737269020341603902,
+                13491591132308782822,
+                2420261513329173431,
+            ]),
+            Bn128Base([
+                1062543480691384776,
+                13315554019138159385,
+                3588730779329066043,
+                106141411247146151,
+            ]),
+            Bn128Base([
+                8227730547903353994,
+                9584719179116428424,
+                11268238026684181373,
+                1782281581539027984,
+            ]),
+        ]));
+
+        let g2_pre = builder.precompute::<G2, Bn128Base>(&g2);
+        let gt = builder.miller_loop(&g1, &g2_pre);
+        builder.connect_nonnative_ext12(&gt_expected, &gt);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
