@@ -1090,7 +1090,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    // #[ignore]
     fn test_miller_loop() -> Result<()> {
         let mut builder = env_logger::Builder::from_default_env();
         builder.format_timestamp(None);

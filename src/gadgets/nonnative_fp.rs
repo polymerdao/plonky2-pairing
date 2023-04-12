@@ -142,7 +142,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn constant_nonnative<FF: PrimeField>(&mut self, x: FF) -> NonNativeTarget<FF> {
-        let x_biguint = self.constant_biguint(&x.to_canonical_biguint());
+        let mut x_biguint = self.constant_biguint(&x.to_canonical_biguint());
+        let num_limbs = FF::BITS / 32;
+        for _ in 0..(num_limbs - x_biguint.num_limbs()) {
+            x_biguint.limbs.push(self.constant_u32(0));
+        }
         self.biguint_to_nonnative(&x_biguint)
     }
 
