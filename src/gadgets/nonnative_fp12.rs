@@ -1,4 +1,5 @@
 use crate::field::extension::dodecic::DodecicExtension;
+use crate::field::extension::quadratic::QuadraticExtension;
 use crate::field::extension::sextic::SexticExtension;
 use crate::gadgets::nonnative_fp2::{CircuitBuilderNonNativeExt2, NonNativeTargetExt2};
 use crate::gadgets::nonnative_fp6::{CircuitBuilderNonNativeExt6, NonNativeTargetExt6};
@@ -7,6 +8,8 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_field::extension::Extendable;
 use plonky2_field::types::{Field, PrimeField};
 use std::marker::PhantomData;
+
+const CYCLOTOMIC_POW_LOOP: [u64; 4] = [4965661367192848881, 0, 0, 0];
 
 #[derive(Clone, Debug)]
 pub struct NonNativeTargetExt12<FF: Field> {
@@ -78,6 +81,49 @@ pub trait CircuitBuilderNonNativeExt12<F: RichField + Extendable<D>, const D: us
         ell_0: &NonNativeTargetExt2<FF>,
         ell_vw: &NonNativeTargetExt2<FF>,
         ell_vv: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn final_exponentiation_first_chunk<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn final_exponentiation_last_chunk<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn unitary_inverse_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn frobenius_map_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn frobenius_coeffs_c1_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        power: usize,
+    ) -> NonNativeTargetExt2<FF>;
+
+    fn cyclotomic_pow_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
     ) -> NonNativeTargetExt12<FF>;
 }
 
@@ -320,6 +366,124 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
             _phantom: PhantomData,
         }
     }
+
+    fn final_exponentiation_first_chunk<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        let b = self.inv_nonnative_ext12(x);
+        let a = self.unitary_inverse_nonnative_ext12(x);
+        let c = self.mul_nonnative_ext12(&a, &b);
+        let d = self.frobenius_map_nonnative_ext12(&c, 2);
+        return self.mul_nonnative_ext12(&d, &c);
+    }
+
+    // fn final_exponentiation_last_chunk(&self) -> Fq12 {
+    //     let a = self.exp_by_neg_z();
+    //     let b = a.cyclotomic_squared();
+    //     let c = b.cyclotomic_squared();
+    //     let d = c * b;
+    //
+    //     let e = d.exp_by_neg_z();
+    //     let f = e.cyclotomic_squared();
+    //     let g = f.exp_by_neg_z();
+    //     let h = d.unitary_inverse();
+    //     let i = g.unitary_inverse();
+    //
+    //     let j = i * e;
+    //     let k = j * h;
+    //     let l = k * b;
+    //     let m = k * e;
+    //     let n = *self * m;
+    //
+    //     let o = l.frobenius_map(1);
+    //     let p = o * n;
+    //
+    //     let q = k.frobenius_map(2);
+    //     let r = q * p;
+    //
+    //     let s = self.unitary_inverse();
+    //     let t = s * l;
+    //     let u = t.frobenius_map(3);
+    //     let v = u * r;
+    //
+    //     v
+    // }
+    fn final_exponentiation_last_chunk<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        todo!()
+    }
+
+    fn unitary_inverse_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        NonNativeTargetExt12 {
+            c0: x.c0.clone(),
+            c1: self.neg_nonnative_ext6(&x.c1),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn frobenius_map_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt12<FF> {
+        let c0 = self.frobenius_map_nonnative_ext6(&x.c0, power);
+        let mut c1 = self.frobenius_map_nonnative_ext6(&x.c1, power);
+        let frobenius_coeffs_c1 = self.frobenius_coeffs_c1_nonnative_ext12::<FF>(power);
+        c1 = self.scale_nonnative_ext6(&c1, &frobenius_coeffs_c1);
+
+        NonNativeTargetExt12 {
+            c0,
+            c1,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn frobenius_coeffs_c1_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        power: usize,
+    ) -> NonNativeTargetExt2<FF> {
+        match power % 12 {
+            0 => self.constant_nonnative_ext2(QuadraticExtension([FF::ONE, FF::ZERO])),
+            1 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[0],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[1],
+            ])),
+            2 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[2],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[3],
+            ])),
+            3 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[4],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT12_C1[5],
+            ])),
+            _ => unreachable!(),
+        }
+    }
+
+    fn cyclotomic_pow_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
@@ -482,6 +646,174 @@ mod tests {
 
         let square_x_expected = builder.constant_nonnative_ext12(square_x_ff);
         builder.connect_nonnative_ext12(&square_x, &square_x_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_final_exponentiation_first_chunk() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext12(DodecicExtension::<Bn128Base>([
+            Bn128Base([
+                11214948798496262313,
+                17041960038845619795,
+                15038543693968526953,
+                2854769455943088582,
+            ]),
+            Bn128Base([
+                18358947165889346901,
+                7594645203897246376,
+                8678460969103022172,
+                1920999953682168236,
+            ]),
+            Bn128Base([
+                3822366764294320012,
+                17097402614902894928,
+                9428044024961402650,
+                243602561756596672,
+            ]),
+            Bn128Base([
+                17183959784901604854,
+                8949372598380251153,
+                6758521511101568679,
+                3292122140014866630,
+            ]),
+            Bn128Base([
+                18184120903008236488,
+                754777629877848609,
+                11021228852074755205,
+                1907956694624918089,
+            ]),
+            Bn128Base([
+                1027874041688341259,
+                11521396577902036682,
+                3591493198463547173,
+                83019242339262093,
+            ]),
+            Bn128Base([
+                3122839170227481532,
+                12173517765924753901,
+                5944764658757645540,
+                3140853624433931065,
+            ]),
+            Bn128Base([
+                8180994361383621561,
+                7383210295740433637,
+                16513349742730085408,
+                3103130917377758986,
+            ]),
+            Bn128Base([
+                10794403896041222214,
+                926595914487050175,
+                14036399402507339094,
+                1776103223747386957,
+            ]),
+            Bn128Base([
+                5805166188446473199,
+                2737269020341603902,
+                13491591132308782822,
+                2420261513329173431,
+            ]),
+            Bn128Base([
+                1062543480691384776,
+                13315554019138159385,
+                3588730779329066043,
+                106141411247146151,
+            ]),
+            Bn128Base([
+                8227730547903353994,
+                9584719179116428424,
+                11268238026684181373,
+                1782281581539027984,
+            ]),
+        ]));
+        let x_final_exp = builder.final_exponentiation_first_chunk(&x);
+
+        let x_final_exp_expected =
+            builder.constant_nonnative_ext12(DodecicExtension::<Bn128Base>([
+                Bn128Base([
+                    5043434446089285776,
+                    10657533606529759381,
+                    9152584192476601849,
+                    863261167379340181,
+                ]),
+                Bn128Base([
+                    1759854438208681881,
+                    10094654885433073257,
+                    10889272284263138169,
+                    206742352424560226,
+                ]),
+                Bn128Base([
+                    12238932165434206878,
+                    452718107807392450,
+                    3857971098306646129,
+                    2613030368524641847,
+                ]),
+                Bn128Base([
+                    319701665180357227,
+                    16780665263894364593,
+                    7227241905817552956,
+                    1950574583009916137,
+                ]),
+                Bn128Base([
+                    15637801825321601713,
+                    8127946141092097176,
+                    15152883888254822532,
+                    674308714911400065,
+                ]),
+                Bn128Base([
+                    3491857992057944970,
+                    7544174498196655585,
+                    5480627366048737444,
+                    2759127147877780974,
+                ]),
+                Bn128Base([
+                    7953389960191066797,
+                    6608090703034079355,
+                    12435011256579941993,
+                    3317973050482146224,
+                ]),
+                Bn128Base([
+                    18208874372440361022,
+                    16672756784219067058,
+                    11280915796095520360,
+                    3251073394725726799,
+                ]),
+                Bn128Base([
+                    2543162941034769838,
+                    15580478473328230612,
+                    15703823338471723517,
+                    1671952983213063682,
+                ]),
+                Bn128Base([
+                    10352949919205638184,
+                    5317582320269278982,
+                    1514888404229931376,
+                    945684070290498550,
+                ]),
+                Bn128Base([
+                    3331955989982546804,
+                    13054065507425301176,
+                    16966933150791074791,
+                    1615565592860901151,
+                ]),
+                Bn128Base([
+                    4235137809230761352,
+                    8287660036747641836,
+                    16044316575367099562,
+                    1718719610590146095,
+                ]),
+            ]));
+        builder.connect_nonnative_ext12(&x_final_exp, &x_final_exp_expected);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();

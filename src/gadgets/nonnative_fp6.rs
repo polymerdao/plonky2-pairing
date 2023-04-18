@@ -74,6 +74,28 @@ pub trait CircuitBuilderNonNativeExt6<F: RichField + Extendable<D>, const D: usi
         &mut self,
         x: &NonNativeTargetExt6<FF>,
     ) -> NonNativeTargetExt6<FF>;
+
+    fn frobenius_map_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt6<FF>;
+
+    fn frobenius_coeffs_c1_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        n: usize,
+    ) -> NonNativeTargetExt2<FF>;
+
+    fn frobenius_coeffs_c2_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        n: usize,
+    ) -> NonNativeTargetExt2<FF>;
+
+    fn scale_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+        by: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt6<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F, D>
@@ -284,6 +306,83 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt6<F
             c0,
             c1,
             c2,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn frobenius_map_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+        power: usize,
+    ) -> NonNativeTargetExt6<FF> {
+        let mut c1 = self.frobenius_map_nonnative_ext2(&x.c1, power);
+        let mut c2 = self.frobenius_map_nonnative_ext2(&x.c2, power);
+        let frobenius_c1 = self.frobenius_coeffs_c1_nonnative_ext6(power);
+        let frobenius_c2 = self.frobenius_coeffs_c2_nonnative_ext6(power);
+        c1 = self.mul_nonnative_ext2(&c1, &frobenius_c1);
+        c2 = self.mul_nonnative_ext2(&c2, &frobenius_c2);
+
+        NonNativeTargetExt6 {
+            c0: self.frobenius_map_nonnative_ext2(&x.c0, power),
+            c1,
+            c2,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn frobenius_coeffs_c1_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        n: usize,
+    ) -> NonNativeTargetExt2<FF> {
+        match n % 6 {
+            0 => self.constant_nonnative_ext2(QuadraticExtension([FF::ONE, FF::ZERO])),
+            1 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[0],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[1],
+            ])),
+            2 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[2],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[3],
+            ])),
+            3 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[4],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C1[5],
+            ])),
+            _ => unreachable!(),
+        }
+    }
+
+    fn frobenius_coeffs_c2_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        n: usize,
+    ) -> NonNativeTargetExt2<FF> {
+        match n % 6 {
+            0 => self.constant_nonnative_ext2(QuadraticExtension([FF::ONE, FF::ZERO])),
+            1 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[0],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[1],
+            ])),
+            2 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[2],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[3],
+            ])),
+            3 => self.constant_nonnative_ext2(QuadraticExtension([
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[4],
+                <FF as Extendable<2>>::FROBENIUS_COEFFS_EXT6_C2[5],
+            ])),
+            _ => unreachable!(),
+        }
+    }
+
+    fn scale_nonnative_ext6<FF: PrimeField + Extendable<6> + Extendable<2>>(
+        &mut self,
+        x: &NonNativeTargetExt6<FF>,
+        by: &NonNativeTargetExt2<FF>,
+    ) -> NonNativeTargetExt6<FF> {
+        NonNativeTargetExt6 {
+            c0: self.mul_nonnative_ext2(&x.c0, by),
+            c1: self.mul_nonnative_ext2(&x.c1, by),
+            c2: self.mul_nonnative_ext2(&x.c2, by),
             _phantom: PhantomData,
         }
     }
