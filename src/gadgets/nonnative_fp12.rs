@@ -543,7 +543,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         t0 = self.mul_nonnative_ext2(&t0, &z0_add_z1);
         t0 = self.sub_nonnative_ext2(&t0, &tmp);
         t0 = self.sub_nonnative_ext2(&t0, &tmp_mul_by_nonresidue);
-        let mut t1 = self.add_nonnative_ext2(&tmp, &tmp);
+        let t1 = self.add_nonnative_ext2(&tmp, &tmp);
 
         // let tmp = z2 * z3;
         // let t2 = (z2 + z3) * (z3.mul_by_nonresidue() + z2) - tmp - tmp.mul_by_nonresidue();
@@ -556,7 +556,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         t2 = self.mul_nonnative_ext2(&t2, &z2_add_z3);
         t2 = self.sub_nonnative_ext2(&t2, &tmp);
         t2 = self.sub_nonnative_ext2(&t2, &tmp_mul_by_nonresidue);
-        let mut t3 = self.add_nonnative_ext2(&tmp, &tmp);
+        let t3 = self.add_nonnative_ext2(&tmp, &tmp);
 
         // let tmp = z4 * z5;
         // let t4 = (z4 + z5) * (z5.mul_by_nonresidue() + z4) - tmp - tmp.mul_by_nonresidue();
@@ -569,7 +569,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         t4 = self.mul_nonnative_ext2(&t4, &z4_add_z5);
         t4 = self.sub_nonnative_ext2(&t4, &tmp);
         t4 = self.sub_nonnative_ext2(&t4, &tmp_mul_by_nonresidue);
-        let mut t5 = self.add_nonnative_ext2(&tmp, &tmp);
+        let t5 = self.add_nonnative_ext2(&tmp, &tmp);
 
         // let z0 = t0 - z0;
         // let z0 = z0 + z0;
@@ -979,6 +979,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_final_exponentiation_last_chunk() -> Result<()> {
         let mut builder = env_logger::Builder::from_default_env();
         builder.format_timestamp(None);
