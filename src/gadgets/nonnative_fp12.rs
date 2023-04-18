@@ -125,6 +125,20 @@ pub trait CircuitBuilderNonNativeExt12<F: RichField + Extendable<D>, const D: us
         &mut self,
         x: &NonNativeTargetExt12<FF>,
     ) -> NonNativeTargetExt12<FF>;
+
+    fn cyclotomic_squared_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
+
+    fn exp_by_neg_z_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<F, D>
@@ -380,44 +394,41 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         return self.mul_nonnative_ext12(&d, &c);
     }
 
-    // fn final_exponentiation_last_chunk(&self) -> Fq12 {
-    //     let a = self.exp_by_neg_z();
-    //     let b = a.cyclotomic_squared();
-    //     let c = b.cyclotomic_squared();
-    //     let d = c * b;
-    //
-    //     let e = d.exp_by_neg_z();
-    //     let f = e.cyclotomic_squared();
-    //     let g = f.exp_by_neg_z();
-    //     let h = d.unitary_inverse();
-    //     let i = g.unitary_inverse();
-    //
-    //     let j = i * e;
-    //     let k = j * h;
-    //     let l = k * b;
-    //     let m = k * e;
-    //     let n = *self * m;
-    //
-    //     let o = l.frobenius_map(1);
-    //     let p = o * n;
-    //
-    //     let q = k.frobenius_map(2);
-    //     let r = q * p;
-    //
-    //     let s = self.unitary_inverse();
-    //     let t = s * l;
-    //     let u = t.frobenius_map(3);
-    //     let v = u * r;
-    //
-    //     v
-    // }
     fn final_exponentiation_last_chunk<
         FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
     >(
         &mut self,
         x: &NonNativeTargetExt12<FF>,
     ) -> NonNativeTargetExt12<FF> {
-        todo!()
+        let a = self.exp_by_neg_z_nonnative_ext12(x);
+        let b = self.cyclotomic_squared_nonnative_ext12(&a);
+        let c = self.cyclotomic_squared_nonnative_ext12(&b);
+        let d = self.mul_nonnative_ext12(&c, &b);
+
+        let e = self.exp_by_neg_z_nonnative_ext12(&d);
+        let f = self.cyclotomic_squared_nonnative_ext12(&e);
+        let g = self.exp_by_neg_z_nonnative_ext12(&f);
+        let h = self.unitary_inverse_nonnative_ext12(&d);
+        let i = self.unitary_inverse_nonnative_ext12(&g);
+
+        let j = self.mul_nonnative_ext12(&i, &e);
+        let k = self.mul_nonnative_ext12(&j, &h);
+        let l = self.mul_nonnative_ext12(&k, &b);
+        let m = self.mul_nonnative_ext12(&k, &e);
+        let n = self.mul_nonnative_ext12(x, &m);
+
+        let o = self.frobenius_map_nonnative_ext12(&l, 1);
+        let p = self.mul_nonnative_ext12(&o, &n);
+
+        let q = self.frobenius_map_nonnative_ext12(&k, 2);
+        let r = self.mul_nonnative_ext12(&q, &p);
+
+        let s = self.unitary_inverse_nonnative_ext12(x);
+        let t = self.mul_nonnative_ext12(&s, &l);
+        let u = self.frobenius_map_nonnative_ext12(&t, 3);
+        let v = self.mul_nonnative_ext12(&u, &r);
+
+        v
     }
 
     fn unitary_inverse_nonnative_ext12<
@@ -482,7 +493,153 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNativeExt12<
         &mut self,
         x: &NonNativeTargetExt12<FF>,
     ) -> NonNativeTargetExt12<FF> {
-        todo!()
+        let mut res = self.constant_nonnative_ext12(DodecicExtension::ONE);
+        let mut found_one = false;
+
+        for j in CYCLOTOMIC_POW_LOOP.iter().rev() {
+            for i in (0..64).rev() {
+                if found_one {
+                    res = self.cyclotomic_squared_nonnative_ext12(&res);
+                }
+
+                if (j >> i) & 1 == 1 {
+                    found_one = true;
+                    res = self.mul_nonnative_ext12(&x, &res);
+                }
+            }
+        }
+
+        res
+    }
+
+    fn cyclotomic_squared_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        // let z0 = self.c0.c0;
+        // let z4 = self.c0.c1;
+        // let z3 = self.c0.c2;
+        // let z2 = self.c1.c0;
+        // let z1 = self.c1.c1;
+        // let z5 = self.c1.c2;
+
+        let mut z0 = x.c0.c0.clone();
+        let mut z4 = x.c0.c1.clone();
+        let mut z3 = x.c0.c2.clone();
+        let mut z2 = x.c1.c0.clone();
+        let mut z1 = x.c1.c1.clone();
+        let mut z5 = x.c1.c2.clone();
+
+        // let tmp = z0 * z1;
+        // let t0 = (z0 + z1) * (z1.mul_by_nonresidue() + z0) - tmp - tmp.mul_by_nonresidue();
+        // let t1 = tmp + tmp;
+        let mut tmp = self.mul_nonnative_ext2(&z0, &z1);
+        let mut tmp_mul_by_nonresidue = self.mul_by_nonresidue_nonnative_ext2(&tmp);
+        let mut t0 = self.mul_by_nonresidue_nonnative_ext2(&z1);
+        t0 = self.add_nonnative_ext2(&t0, &z0);
+        let z0_add_z1 = self.add_nonnative_ext2(&z0, &z1);
+        t0 = self.mul_nonnative_ext2(&t0, &z0_add_z1);
+        t0 = self.sub_nonnative_ext2(&t0, &tmp);
+        t0 = self.sub_nonnative_ext2(&t0, &tmp_mul_by_nonresidue);
+        let mut t1 = self.add_nonnative_ext2(&tmp, &tmp);
+
+        // let tmp = z2 * z3;
+        // let t2 = (z2 + z3) * (z3.mul_by_nonresidue() + z2) - tmp - tmp.mul_by_nonresidue();
+        // let t3 = tmp + tmp;
+        tmp = self.mul_nonnative_ext2(&z2, &z3);
+        tmp_mul_by_nonresidue = self.mul_by_nonresidue_nonnative_ext2(&tmp);
+        let mut t2 = self.mul_by_nonresidue_nonnative_ext2(&z3);
+        t2 = self.add_nonnative_ext2(&t2, &z2);
+        let z2_add_z3 = self.add_nonnative_ext2(&z2, &z3);
+        t2 = self.mul_nonnative_ext2(&t2, &z2_add_z3);
+        t2 = self.sub_nonnative_ext2(&t2, &tmp);
+        t2 = self.sub_nonnative_ext2(&t2, &tmp_mul_by_nonresidue);
+        let mut t3 = self.add_nonnative_ext2(&tmp, &tmp);
+
+        // let tmp = z4 * z5;
+        // let t4 = (z4 + z5) * (z5.mul_by_nonresidue() + z4) - tmp - tmp.mul_by_nonresidue();
+        // let t5 = tmp + tmp;
+        tmp = self.mul_nonnative_ext2(&z4, &z5);
+        tmp_mul_by_nonresidue = self.mul_by_nonresidue_nonnative_ext2(&tmp);
+        let mut t4 = self.mul_by_nonresidue_nonnative_ext2(&z5);
+        t4 = self.add_nonnative_ext2(&t4, &z4);
+        let z4_add_z5 = self.add_nonnative_ext2(&z4, &z5);
+        t4 = self.mul_nonnative_ext2(&t4, &z4_add_z5);
+        t4 = self.sub_nonnative_ext2(&t4, &tmp);
+        t4 = self.sub_nonnative_ext2(&t4, &tmp_mul_by_nonresidue);
+        let mut t5 = self.add_nonnative_ext2(&tmp, &tmp);
+
+        // let z0 = t0 - z0;
+        // let z0 = z0 + z0;
+        // let z0 = z0 + t0;
+        //
+        // let z1 = t1 + z1;
+        // let z1 = z1 + z1;
+        // let z1 = z1 + t1;
+        z0 = self.sub_nonnative_ext2(&t0, &z0);
+        z0 = self.add_nonnative_ext2(&z0, &z0);
+        z0 = self.add_nonnative_ext2(&z0, &t0);
+        z1 = self.add_nonnative_ext2(&t1, &z1);
+        z1 = self.add_nonnative_ext2(&z1, &z1);
+        z1 = self.add_nonnative_ext2(&z1, &t1);
+
+        // let tmp = t5.mul_by_nonresidue();
+        // let z2 = tmp + z2;
+        // let z2 = z2 + z2;
+        // let z2 = z2 + tmp;
+        tmp = self.mul_by_nonresidue_nonnative_ext2(&t5);
+        z2 = self.add_nonnative_ext2(&tmp, &z2);
+        z2 = self.add_nonnative_ext2(&z2, &z2);
+        z2 = self.add_nonnative_ext2(&z2, &tmp);
+
+        // let z3 = t4 - z3;
+        // let z3 = z3 + z3;
+        // let z3 = z3 + t4;
+        //
+        // let z4 = t2 - z4;
+        // let z4 = z4 + z4;
+        // let z4 = z4 + t2;
+        //
+        // let z5 = t3 + z5;
+        // let z5 = z5 + z5;
+        // let z5 = z5 + t3;
+        z3 = self.sub_nonnative_ext2(&t4, &z3);
+        z3 = self.add_nonnative_ext2(&z3, &z3);
+        z3 = self.add_nonnative_ext2(&z3, &t4);
+        z4 = self.sub_nonnative_ext2(&t2, &z4);
+        z4 = self.add_nonnative_ext2(&z4, &z4);
+        z4 = self.add_nonnative_ext2(&z4, &t2);
+        z5 = self.add_nonnative_ext2(&t3, &z5);
+        z5 = self.add_nonnative_ext2(&z5, &z5);
+        z5 = self.add_nonnative_ext2(&z5, &t3);
+
+        NonNativeTargetExt12 {
+            c0: NonNativeTargetExt6 {
+                c0: z0,
+                c1: z4,
+                c2: z3,
+                _phantom: PhantomData,
+            },
+            c1: NonNativeTargetExt6 {
+                c0: z2,
+                c1: z1,
+                c2: z5,
+                _phantom: PhantomData,
+            },
+            _phantom: PhantomData,
+        }
+    }
+
+    fn exp_by_neg_z_nonnative_ext12<
+        FF: PrimeField + Extendable<12> + Extendable<6> + Extendable<2>,
+    >(
+        &mut self,
+        x: &NonNativeTargetExt12<FF>,
+    ) -> NonNativeTargetExt12<FF> {
+        let t = self.cyclotomic_pow_nonnative_ext12(&x);
+        self.unitary_inverse_nonnative_ext12(&t)
     }
 }
 
@@ -492,6 +649,7 @@ mod tests {
     use crate::field::extension::dodecic::DodecicExtension;
     use crate::gadgets::nonnative_fp12::CircuitBuilderNonNativeExt12;
     use anyhow::Result;
+    use log::LevelFilter;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -811,6 +969,179 @@ mod tests {
                     8287660036747641836,
                     16044316575367099562,
                     1718719610590146095,
+                ]),
+            ]));
+        builder.connect_nonnative_ext12(&x_final_exp, &x_final_exp_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_final_exponentiation_last_chunk() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let config = CircuitConfig::standard_ecc_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let x = builder.constant_nonnative_ext12(DodecicExtension::<Bn128Base>([
+            Bn128Base([
+                5043434446089285776,
+                10657533606529759381,
+                9152584192476601849,
+                863261167379340181,
+            ]),
+            Bn128Base([
+                1759854438208681881,
+                10094654885433073257,
+                10889272284263138169,
+                206742352424560226,
+            ]),
+            Bn128Base([
+                12238932165434206878,
+                452718107807392450,
+                3857971098306646129,
+                2613030368524641847,
+            ]),
+            Bn128Base([
+                319701665180357227,
+                16780665263894364593,
+                7227241905817552956,
+                1950574583009916137,
+            ]),
+            Bn128Base([
+                15637801825321601713,
+                8127946141092097176,
+                15152883888254822532,
+                674308714911400065,
+            ]),
+            Bn128Base([
+                3491857992057944970,
+                7544174498196655585,
+                5480627366048737444,
+                2759127147877780974,
+            ]),
+            Bn128Base([
+                7953389960191066797,
+                6608090703034079355,
+                12435011256579941993,
+                3317973050482146224,
+            ]),
+            Bn128Base([
+                18208874372440361022,
+                16672756784219067058,
+                11280915796095520360,
+                3251073394725726799,
+            ]),
+            Bn128Base([
+                2543162941034769838,
+                15580478473328230612,
+                15703823338471723517,
+                1671952983213063682,
+            ]),
+            Bn128Base([
+                10352949919205638184,
+                5317582320269278982,
+                1514888404229931376,
+                945684070290498550,
+            ]),
+            Bn128Base([
+                3331955989982546804,
+                13054065507425301176,
+                16966933150791074791,
+                1615565592860901151,
+            ]),
+            Bn128Base([
+                4235137809230761352,
+                8287660036747641836,
+                16044316575367099562,
+                1718719610590146095,
+            ]),
+        ]));
+        let x_final_exp = builder.final_exponentiation_last_chunk(&x);
+
+        let x_final_exp_expected =
+            builder.constant_nonnative_ext12(DodecicExtension::<Bn128Base>([
+                Bn128Base([
+                    11214948798496262313,
+                    17041960038845619795,
+                    15038543693968526953,
+                    2854769455943088582,
+                ]),
+                Bn128Base([
+                    18358947165889346901,
+                    7594645203897246376,
+                    8678460969103022172,
+                    1920999953682168236,
+                ]),
+                Bn128Base([
+                    3822366764294320012,
+                    17097402614902894928,
+                    9428044024961402650,
+                    243602561756596672,
+                ]),
+                Bn128Base([
+                    17183959784901604854,
+                    8949372598380251153,
+                    6758521511101568679,
+                    3292122140014866630,
+                ]),
+                Bn128Base([
+                    18184120903008236488,
+                    754777629877848609,
+                    11021228852074755205,
+                    1907956694624918089,
+                ]),
+                Bn128Base([
+                    1027874041688341259,
+                    11521396577902036682,
+                    3591493198463547173,
+                    83019242339262093,
+                ]),
+                Bn128Base([
+                    3122839170227481532,
+                    12173517765924753901,
+                    5944764658757645540,
+                    3140853624433931065,
+                ]),
+                Bn128Base([
+                    8180994361383621561,
+                    7383210295740433637,
+                    16513349742730085408,
+                    3103130917377758986,
+                ]),
+                Bn128Base([
+                    10794403896041222214,
+                    926595914487050175,
+                    14036399402507339094,
+                    1776103223747386957,
+                ]),
+                Bn128Base([
+                    5805166188446473199,
+                    2737269020341603902,
+                    13491591132308782822,
+                    2420261513329173431,
+                ]),
+                Bn128Base([
+                    1062543480691384776,
+                    13315554019138159385,
+                    3588730779329066043,
+                    106141411247146151,
+                ]),
+                Bn128Base([
+                    8227730547903353994,
+                    9584719179116428424,
+                    11268238026684181373,
+                    1782281581539027984,
                 ]),
             ]));
         builder.connect_nonnative_ext12(&x_final_exp, &x_final_exp_expected);
