@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::field::extension::quadratic::QuadraticExtension;
+use crate::gadgets::biguint::BigUintTarget;
 use crate::gadgets::g1::{AffinePointTarget, CircuitBuilderCurve};
 use crate::gadgets::g2::{AffinePointTargetG2, CircuitBuilderCurveG2};
 use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
@@ -15,7 +16,6 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 use plonky2_ecdsa::curve::curve_types::{Curve, CurveScalar};
-use plonky2_ecdsa::gadgets::biguint::BigUintTarget;
 use plonky2_field::types::PrimeField;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 

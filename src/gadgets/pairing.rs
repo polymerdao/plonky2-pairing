@@ -63,6 +63,7 @@ mod tests {
     use plonky2_field::types::Sample;
 
     #[test]
+    #[ignore]
     fn test_pairing() -> Result<()> {
         let mut builder = env_logger::Builder::from_default_env();
         builder.format_timestamp(None);

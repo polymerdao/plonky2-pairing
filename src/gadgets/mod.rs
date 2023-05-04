@@ -1,3 +1,4 @@
+mod biguint;
 mod g1;
 mod g2;
 mod nonnative_fp;
