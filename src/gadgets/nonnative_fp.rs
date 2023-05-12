@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use crate::gadgets::biguint::{
     BigUintTarget, CircuitBuilderBiguint, GeneratedValuesBigUint, WitnessBigUint,
 };
+use crate::gadgets::gates::nonnative_add::NonnativeAddGate;
 use num::{BigUint, Integer, One, Zero};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField};
@@ -190,31 +191,53 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         a: &NonNativeTarget<FF>,
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
-        let sum = self.add_virtual_nonnative_target::<FF>();
-        let overflow = self.add_virtual_bool_target_unsafe();
+        // let sum = self.add_virtual_nonnative_target::<FF>();
+        // let overflow = self.add_virtual_bool_target_unsafe();
+        //
+        // self.add_simple_generator(NonNativeAdditionGenerator::<F, D, FF> {
+        //     a: a.clone(),
+        //     b: b.clone(),
+        //     sum: sum.clone(),
+        //     overflow,
+        //     _phantom: PhantomData,
+        // });
+        //
+        // let sum_expected = self.add_biguint(&a.value, &b.value);
+        //
+        // let modulus = self.constant_biguint(&FF::order());
+        // let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
+        // let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
+        // self.connect_biguint(&sum_expected, &sum_actual);
+        //
+        // // Range-check result.
+        // // TODO: can potentially leave unreduced until necessary (e.g. when connecting values).
+        // let cmp = self.cmp_biguint(&sum.value, &modulus);
+        // let one = self.one();
+        // self.connect(cmp.target, one);
+        // sum
 
-        self.add_simple_generator(NonNativeAdditionGenerator::<F, D, FF> {
-            a: a.clone(),
-            b: b.clone(),
-            sum: sum.clone(),
-            overflow,
+        let gate = NonnativeAddGate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+
+        let mut targets = Vec::new();
+        for i in 0..8 {
+            self.connect(
+                Target::wire(row, gate.wire_ith_input_x(copy) + i),
+                a.value.limbs[i].0,
+            );
+            self.connect(
+                Target::wire(row, gate.wire_ith_input_y(copy) + i),
+                b.value.limbs[i].0,
+            );
+            targets.push(U32Target {
+                0: Target::wire(row, gate.wire_ith_output_result(copy) + i),
+            });
+        }
+
+        NonNativeTarget {
+            value: BigUintTarget { limbs: targets },
             _phantom: PhantomData,
-        });
-
-        let sum_expected = self.add_biguint(&a.value, &b.value);
-
-        let modulus = self.constant_biguint(&FF::order());
-        let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
-        let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
-        self.connect_biguint(&sum_expected, &sum_actual);
-
-        // Range-check result.
-        // TODO: can potentially leave unreduced until necessary (e.g. when connecting values).
-        let cmp = self.cmp_biguint(&sum.value, &modulus);
-        let one = self.one();
-        self.connect(cmp.target, one);
-
-        sum
+        }
     }
 
     fn mul_nonnative_by_bool<FF: Field>(
@@ -691,6 +714,7 @@ mod tests {
     use crate::field::bn128_base::Bn128Base;
     use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
     use anyhow::Result;
+    use log::LevelFilter;
     use plonky2::field::types::{Field, PrimeField, Sample};
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -699,6 +723,11 @@ mod tests {
 
     #[test]
     fn test_nonnative_add() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
         type FF = Bn128Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -708,7 +737,7 @@ mod tests {
         let y_ff = FF::rand();
         let sum_ff = x_ff + y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 

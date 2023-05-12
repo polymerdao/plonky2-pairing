@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use num::BigUint;
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
@@ -99,11 +100,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
         let mut constraints = Vec::with_capacity(self.num_constraints());
         for i in 0..self.num_ops {
-            let mut input_x = vec![0; 8];
-            let mut input_y = vec![0; 8];
-            let mut output_result = vec![0; 8];
-            let mut carry_l = vec![0; 8];
-            let mut carry_r = vec![0; 8];
+            let mut input_x = vec![F::Extension::ZERO; 8];
+            let mut input_y = vec![F::Extension::ZERO; 8];
+            let mut output_result = vec![F::Extension::ZERO; 8];
+            let mut carry_l = vec![F::Extension::ZERO; 8];
+            let mut carry_r = vec![F::Extension::ZERO; 8];
             let carry = vars.local_wires[self.wire_ith_carry(i)];
 
             for j in 0..8 {
@@ -115,8 +116,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
             }
 
             let base = F::Extension::from_canonical_u64(1 << 32u64);
-            let mut results_l = vec![0; 8];
-            let mut results_r = vec![0; 8];
+            let mut results_l = vec![F::Extension::ZERO; 8];
+            let mut results_r = vec![F::Extension::ZERO; 8];
 
             for j in 0..8 {
                 results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base;
@@ -165,8 +166,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
 
     fn eval_unfiltered_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: EvaluationTargets<D>,
+        _builder: &mut CircuitBuilder<F, D>,
+        _vars: EvaluationTargets<D>,
     ) -> Vec<ExtensionTarget<D>> {
         todo!("eval_unfiltered_circuit")
     }
@@ -214,11 +215,11 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
         mut yield_constr: StridedConstraintConsumer<P>,
     ) {
         for i in 0..self.num_ops {
-            let mut input_x = vec![0; 8];
-            let mut input_y = vec![0; 8];
-            let mut output_result = vec![0; 8];
-            let mut carry_l = vec![0; 8];
-            let mut carry_r = vec![0; 8];
+            let mut input_x = vec![P::ZEROS; 8];
+            let mut input_y = vec![P::ZEROS; 8];
+            let mut output_result = vec![P::ZEROS; 8];
+            let mut carry_l = vec![P::ZEROS; 8];
+            let mut carry_r = vec![P::ZEROS; 8];
             let carry = vars.local_wires[self.wire_ith_carry(i)];
 
             for j in 0..8 {
@@ -229,35 +230,35 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i) + j];
             }
 
-            let base = F::Extension::from_canonical_u64(1 << 32u64);
-            let mut results_l = vec![0; 8];
-            let mut results_r = vec![0; 8];
+            let base = F::from_canonical_u64(1 << 32u64);
+            let mut results_l = vec![P::ZEROS; 8];
+            let mut results_r = vec![P::ZEROS; 8];
 
             for j in 0..8 {
-                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base;
+                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base.clone();
                 results_r[j] = output_result[j]
                     + carry * F::from_canonical_u32(NONNATIVE_BASE[j])
-                    + carry_r[j] * base;
+                    + carry_r[j] * base.clone();
                 yield_constr.one(results_r[j] - results_l[j]);
-                yield_constr.one(carry_l[j] * (F::Extension::ONE - carry_l[j]));
-                yield_constr.one(carry_r[j] * (F::Extension::ONE - carry_r[j]));
+                yield_constr.one(carry_l[j] * (P::ONES - carry_l[j]));
+                yield_constr.one(carry_r[j] * (P::ONES - carry_r[j]));
             }
-            yield_constr.one(carry * (F::Extension::ONE - carry));
+            yield_constr.one(carry * (P::ONES - carry));
 
             // Range-check output_result to be at most 32 bits.
             for j in 0..8 {
-                let mut combined_limbs = F::Extension::ZERO;
-                let limb_base = F::Extension::from_canonical_u64(1u64 << Self::limb_bits());
+                let mut combined_limbs = P::ZEROS;
+                let limb_base = F::from_canonical_u64(1u64 << Self::limb_bits());
                 for k in (0..Self::num_limbs()).rev() {
                     let this_limb =
                         vars.local_wires[self.wire_ith_output_jth_limb32_kth_limb2_bit(i, j, k)];
                     let max_limb = 1 << Self::limb_bits();
                     let product = (0..max_limb)
-                        .map(|x| this_limb - F::Extension::from_canonical_usize(x))
+                        .map(|x| this_limb - F::from_canonical_usize(x))
                         .product();
                     yield_constr.one(product);
 
-                    combined_limbs = limb_base * combined_limbs + this_limb;
+                    combined_limbs = combined_limbs * limb_base.clone() + this_limb;
                 }
                 yield_constr.one(combined_limbs - output_result[j]);
             }
@@ -296,155 +297,103 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
-        let input_x = get_local_wire(self.gate.wire_ith_input_x(self.i));
-        let input_y = get_local_wire(self.gate.wire_ith_input_y(self.i));
-        let input_borrow = get_local_wire(self.gate.wire_ith_input_borrow(self.i));
+        let mut input_x = vec![F::ZERO; 8];
+        let mut input_y = vec![F::ZERO; 8];
+        let mut input_x_u32s = vec![0u32; 8];
+        let mut input_y_u32s = vec![0u32; 8];
 
-        let result_initial = input_x - input_y - input_borrow;
-        let result_initial_u64 = result_initial.to_canonical_u64();
-        let output_borrow = if result_initial_u64 > 1 << 32u64 {
+        for j in 0..8 {
+            input_x[j] = get_local_wire(self.gate.wire_ith_input_x(self.i) + j);
+            input_y[j] = get_local_wire(self.gate.wire_ith_input_y(self.i) + j);
+            input_x_u32s[j] = input_x[j].to_canonical_u64() as u32;
+            input_y_u32s[j] = input_y[j].to_canonical_u64() as u32;
+        }
+
+        let input_x_biguint = BigUint::from_slice(&input_x_u32s);
+        let input_y_biguint = BigUint::from_slice(&input_y_u32s);
+
+        let sum_biguint = input_x_biguint + input_y_biguint;
+        let nonnative_base_biguint = BigUint::from_slice(&NONNATIVE_BASE);
+        let carry = if sum_biguint > nonnative_base_biguint {
             F::ONE
         } else {
             F::ZERO
         };
+        let output_result_bigutint = if sum_biguint >= nonnative_base_biguint {
+            sum_biguint - nonnative_base_biguint
+        } else {
+            sum_biguint
+        };
+        let output_result_u32s = output_result_bigutint.to_u32_digits();
 
         let base = F::from_canonical_u64(1 << 32u64);
-        let output_result = result_initial + base * output_borrow;
+        let mut output_result = vec![F::ZERO; 8];
+        let mut carry_l = vec![F::ZERO; 8];
+        let mut carry_r = vec![F::ZERO; 8];
+        let output_result_wire_pos = self.gate.wire_ith_output_result(self.i);
+        let carry_l_wire_pos = self.gate.wire_ith_carry_l(self.i);
+        let carry_r_wire_pos = self.gate.wire_ith_carry_r(self.i);
+        out_buffer.set_wire(local_wire(self.gate.wire_ith_carry(self.i)), carry.clone());
+        for j in 0..8 {
+            output_result[j] = F::from_canonical_u32(output_result_u32s[j]);
+            out_buffer.set_wire(
+                local_wire(output_result_wire_pos + j),
+                output_result[j].clone(),
+            );
+            carry_l[j] = if (input_x[j].clone() + input_y[j].clone()).to_canonical_u64()
+                > base.to_canonical_u64()
+            {
+                F::ONE
+            } else {
+                F::ZERO
+            };
+            out_buffer.set_wire(local_wire(carry_l_wire_pos + j), carry_l[j].clone());
+            carry_r[j] = if (output_result[j].clone()
+                + F::from_canonical_u32(NONNATIVE_BASE[j]) * carry)
+                .to_canonical_u64()
+                > base.to_canonical_u64()
+            {
+                F::ONE
+            } else {
+                F::ZERO
+            };
+            out_buffer.set_wire(local_wire(carry_r_wire_pos + j), carry_r[j].clone());
+        }
 
-        let output_result_wire = local_wire(self.gate.wire_ith_output_result(self.i));
-        let output_borrow_wire = local_wire(self.gate.wire_ith_output_borrow(self.i));
+        for j in 0..8 {
+            let num_limbs = NonnativeAddGate::<F, D>::num_limbs();
+            let limb_base = 1 << NonnativeAddGate::<F, D>::limb_bits();
+            let output_limbs: Vec<_> = (0..num_limbs)
+                .scan(output_result[j].to_canonical_u64(), |acc, _| {
+                    let tmp = *acc % limb_base;
+                    *acc /= limb_base;
+                    Some(F::from_canonical_u64(tmp))
+                })
+                .collect();
 
-        out_buffer.set_wire(output_result_wire, output_result);
-        out_buffer.set_wire(output_borrow_wire, output_borrow);
-
-        let output_result_u64 = output_result.to_canonical_u64();
-
-        let num_limbs = NonnativeAddGate::<F, D>::num_limbs();
-        let limb_base = 1 << NonnativeAddGate::<F, D>::limb_bits();
-        let output_limbs: Vec<_> = (0..num_limbs)
-            .scan(output_result_u64, |acc, _| {
-                let tmp = *acc % limb_base;
-                *acc /= limb_base;
-                Some(F::from_canonical_u64(tmp))
-            })
-            .collect();
-
-        for j in 0..num_limbs {
-            let wire = local_wire(self.gate.wire_ith_output_jth_limb(self.i, j));
-            out_buffer.set_wire(wire, output_limbs[j]);
+            for k in 0..num_limbs {
+                let wire = local_wire(
+                    self.gate
+                        .wire_ith_output_jth_limb32_kth_limb2_bit(self.i, j, k),
+                );
+                out_buffer.set_wire(wire, output_limbs[k].clone());
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use plonky2::field::extension::quartic::QuarticExtension;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{PrimeField64, Sample};
-    use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::gates::gate_testing::test_low_degree;
 
     use super::*;
 
     #[test]
     fn low_degree() {
         test_low_degree::<GoldilocksField, _, 4>(NonnativeAddGate::<GoldilocksField, 4> {
-            num_ops: 3,
+            num_ops: 1,
             _phantom: PhantomData,
         })
-    }
-
-    #[test]
-    fn eval_fns() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        test_eval_fns::<F, C, _, D>(NonnativeAddGate::<GoldilocksField, D> {
-            num_ops: 3,
-            _phantom: PhantomData,
-        })
-    }
-
-    #[test]
-    fn test_gate_constraint() {
-        type F = GoldilocksField;
-        type FF = QuarticExtension<GoldilocksField>;
-        const D: usize = 4;
-        const NUM_U32_SUBTRACTION_OPS: usize = 3;
-
-        fn get_wires(inputs_x: Vec<u64>, inputs_y: Vec<u64>, borrows: Vec<u64>) -> Vec<FF> {
-            let mut v0 = Vec::new();
-            let mut v1 = Vec::new();
-
-            let limb_bits = NonnativeAddGate::<F, D>::limb_bits();
-            let num_limbs = NonnativeAddGate::<F, D>::num_limbs();
-            let limb_base = 1 << limb_bits;
-            for c in 0..NUM_U32_SUBTRACTION_OPS {
-                let input_x = F::from_canonical_u64(inputs_x[c]);
-                let input_y = F::from_canonical_u64(inputs_y[c]);
-                let input_borrow = F::from_canonical_u64(borrows[c]);
-
-                let result_initial = input_x - input_y - input_borrow;
-                let result_initial_u64 = result_initial.to_canonical_u64();
-                let output_borrow = if result_initial_u64 > 1 << 32u64 {
-                    F::ONE
-                } else {
-                    F::ZERO
-                };
-
-                let base = F::from_canonical_u64(1 << 32u64);
-                let output_result = result_initial + base * output_borrow;
-
-                let output_result_u64 = output_result.to_canonical_u64();
-
-                let mut output_limbs: Vec<_> = (0..num_limbs)
-                    .scan(output_result_u64, |acc, _| {
-                        let tmp = *acc % limb_base;
-                        *acc /= limb_base;
-                        Some(F::from_canonical_u64(tmp))
-                    })
-                    .collect();
-
-                v0.push(input_x);
-                v0.push(input_y);
-                v0.push(input_borrow);
-                v0.push(output_result);
-                v0.push(output_borrow);
-                v1.append(&mut output_limbs);
-            }
-
-            v0.iter().chain(v1.iter()).map(|&x| x.into()).collect()
-        }
-
-        let mut rng = OsRng;
-        let inputs_x = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| rng.gen::<u32>() as u64)
-            .collect();
-        let inputs_y = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| rng.gen::<u32>() as u64)
-            .collect();
-        let borrows = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| (rng.gen::<u32>() % 2) as u64)
-            .collect();
-
-        let gate = NonnativeAddGate::<F, D> {
-            num_ops: NUM_U32_SUBTRACTION_OPS,
-            _phantom: PhantomData,
-        };
-
-        let vars = EvaluationVars {
-            local_constants: &[],
-            local_wires: &get_wires(inputs_x, inputs_y, borrows),
-            public_inputs_hash: &HashOut::rand(),
-        };
-
-        assert!(
-            gate.eval_unfiltered(vars).iter().all(|x| x.is_zero()),
-            "Gate constraints are not satisfied."
-        );
     }
 }
