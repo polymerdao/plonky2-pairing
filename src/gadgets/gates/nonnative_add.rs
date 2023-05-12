@@ -168,56 +168,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
         builder: &mut CircuitBuilder<F, D>,
         vars: EvaluationTargets<D>,
     ) -> Vec<ExtensionTarget<D>> {
-        let mut constraints = Vec::with_capacity(self.num_constraints());
-        for i in 0..self.num_ops {
-            let input_x = vars.local_wires[self.wire_ith_input_x(i)];
-            let input_y = vars.local_wires[self.wire_ith_input_y(i)];
-            let input_borrow = vars.local_wires[self.wire_ith_input_borrow(i)];
-
-            let diff = builder.sub_extension(input_x, input_y);
-            let result_initial = builder.sub_extension(diff, input_borrow);
-            let base = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32u64));
-
-            let output_result = vars.local_wires[self.wire_ith_output_result(i)];
-            let output_borrow = vars.local_wires[self.wire_ith_output_borrow(i)];
-
-            let computed_output = builder.mul_add_extension(base, output_borrow, result_initial);
-            constraints.push(builder.sub_extension(output_result, computed_output));
-
-            // Range-check output_result to be at most 32 bits.
-            let mut combined_limbs = builder.zero_extension();
-            let limb_base = builder
-                .constant_extension(F::Extension::from_canonical_u64(1u64 << Self::limb_bits()));
-            for j in (0..Self::num_limbs()).rev() {
-                let this_limb = vars.local_wires[self.wire_ith_output_jth_limb(i, j)];
-                let max_limb = 1 << Self::limb_bits();
-                let mut product = builder.one_extension();
-                for x in 0..max_limb {
-                    let x_target =
-                        builder.constant_extension(F::Extension::from_canonical_usize(x));
-                    let diff = builder.sub_extension(this_limb, x_target);
-                    product = builder.mul_extension(product, diff);
-                }
-                constraints.push(product);
-
-                combined_limbs = builder.mul_add_extension(limb_base, combined_limbs, this_limb);
-            }
-            constraints.push(builder.sub_extension(combined_limbs, output_result));
-
-            // Range-check output_borrow to be one bit.
-            let one = builder.one_extension();
-            let not_borrow = builder.sub_extension(one, output_borrow);
-            constraints.push(builder.mul_extension(output_borrow, not_borrow));
-        }
-
-        constraints
+        todo!("eval_unfiltered_circuit")
     }
 
     fn generators(&self, row: usize, _local_constants: &[F]) -> Vec<Box<dyn WitnessGenerator<F>>> {
         (0..self.num_ops)
             .map(|i| {
                 let g: Box<dyn WitnessGenerator<F>> = Box::new(
-                    U32SubtractionGenerator {
+                    NonnativeAddGenerator {
                         gate: *self,
                         row,
                         i,
@@ -231,7 +189,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
     }
 
     fn num_wires(&self) -> usize {
-        self.num_ops * (5 + Self::num_limbs())
+        169
     }
 
     fn num_constants(&self) -> usize {
@@ -243,7 +201,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
     }
 
     fn num_constraints(&self) -> usize {
-        self.num_ops * (3 + Self::num_limbs())
+        self.num_ops * (33 + 16 * 8)
     }
 }
 
@@ -256,41 +214,59 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
         mut yield_constr: StridedConstraintConsumer<P>,
     ) {
         for i in 0..self.num_ops {
-            let input_x = vars.local_wires[self.wire_ith_input_x(i)];
-            let input_y = vars.local_wires[self.wire_ith_input_y(i)];
-            let input_borrow = vars.local_wires[self.wire_ith_input_borrow(i)];
+            let mut input_x = vec![0; 8];
+            let mut input_y = vec![0; 8];
+            let mut output_result = vec![0; 8];
+            let mut carry_l = vec![0; 8];
+            let mut carry_r = vec![0; 8];
+            let carry = vars.local_wires[self.wire_ith_carry(i)];
 
-            let result_initial = input_x - input_y - input_borrow;
-            let base = F::from_canonical_u64(1 << 32u64);
+            for j in 0..8 {
+                input_x[j] = vars.local_wires[self.wire_ith_input_x(i) + j];
+                input_y[j] = vars.local_wires[self.wire_ith_input_y(i) + j];
+                output_result[j] = vars.local_wires[self.wire_ith_output_result(i) + j];
+                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i) + j];
+                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i) + j];
+            }
 
-            let output_result = vars.local_wires[self.wire_ith_output_result(i)];
-            let output_borrow = vars.local_wires[self.wire_ith_output_borrow(i)];
+            let base = F::Extension::from_canonical_u64(1 << 32u64);
+            let mut results_l = vec![0; 8];
+            let mut results_r = vec![0; 8];
 
-            yield_constr.one(output_result - (result_initial + output_borrow * base));
+            for j in 0..8 {
+                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base;
+                results_r[j] = output_result[j]
+                    + carry * F::from_canonical_u32(NONNATIVE_BASE[j])
+                    + carry_r[j] * base;
+                yield_constr.one(results_r[j] - results_l[j]);
+                yield_constr.one(carry_l[j] * (F::Extension::ONE - carry_l[j]));
+                yield_constr.one(carry_r[j] * (F::Extension::ONE - carry_r[j]));
+            }
+            yield_constr.one(carry * (F::Extension::ONE - carry));
 
             // Range-check output_result to be at most 32 bits.
-            let mut combined_limbs = P::ZEROS;
-            let limb_base = F::from_canonical_u64(1u64 << Self::limb_bits());
-            for j in (0..Self::num_limbs()).rev() {
-                let this_limb = vars.local_wires[self.wire_ith_output_jth_limb(i, j)];
-                let max_limb = 1 << Self::limb_bits();
-                let product = (0..max_limb)
-                    .map(|x| this_limb - F::from_canonical_usize(x))
-                    .product();
-                yield_constr.one(product);
+            for j in 0..8 {
+                let mut combined_limbs = F::Extension::ZERO;
+                let limb_base = F::Extension::from_canonical_u64(1u64 << Self::limb_bits());
+                for k in (0..Self::num_limbs()).rev() {
+                    let this_limb =
+                        vars.local_wires[self.wire_ith_output_jth_limb32_kth_limb2_bit(i, j, k)];
+                    let max_limb = 1 << Self::limb_bits();
+                    let product = (0..max_limb)
+                        .map(|x| this_limb - F::Extension::from_canonical_usize(x))
+                        .product();
+                    yield_constr.one(product);
 
-                combined_limbs = combined_limbs * limb_base + this_limb;
+                    combined_limbs = limb_base * combined_limbs + this_limb;
+                }
+                yield_constr.one(combined_limbs - output_result[j]);
             }
-            yield_constr.one(combined_limbs - output_result);
-
-            // Range-check output_borrow to be one bit.
-            yield_constr.one(output_borrow * (P::ONES - output_borrow));
         }
     }
 }
 
 #[derive(Clone, Debug)]
-struct U32SubtractionGenerator<F: RichField + Extendable<D>, const D: usize> {
+struct NonnativeAddGenerator<F: RichField + Extendable<D>, const D: usize> {
     gate: NonnativeAddGate<F, D>,
     row: usize,
     i: usize,
@@ -298,16 +274,18 @@ struct U32SubtractionGenerator<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
-    for U32SubtractionGenerator<F, D>
+    for NonnativeAddGenerator<F, D>
 {
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
 
-        vec![
-            local_target(self.gate.wire_ith_input_x(self.i)),
-            local_target(self.gate.wire_ith_input_y(self.i)),
-            local_target(self.gate.wire_ith_input_borrow(self.i)),
-        ]
+        let x_base = self.gate.wire_ith_input_x(self.i);
+        let y_base = self.gate.wire_ith_input_y(self.i);
+
+        let x_range: Vec<_> = (0..8).map(|i| local_target(x_base + i)).collect();
+        let y_range: Vec<_> = (0..8).map(|i| local_target(y_base + i)).collect();
+
+        [x_range, y_range].concat()
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
