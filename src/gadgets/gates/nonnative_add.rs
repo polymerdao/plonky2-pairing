@@ -45,29 +45,34 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeAddGate<F, D> {
         (config.num_wires / wires_per_op).min(config.num_routed_wires / routed_wires_per_op)
     }
 
-    pub fn wire_ith_input_x(&self, i: usize) -> usize {
+    pub fn wire_ith_input_x(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * i
+        debug_assert!(j < 8);
+        24 * i + j
     }
-    pub fn wire_ith_input_y(&self, i: usize) -> usize {
+    pub fn wire_ith_input_y(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * i + 8
+        debug_assert!(j < 8);
+        24 * i + 8 + j
     }
-    pub fn wire_ith_output_result(&self, i: usize) -> usize {
+    pub fn wire_ith_output_result(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * i + 16
+        debug_assert!(j < 8);
+        24 * i + 16 + j
     }
     pub fn wire_ith_carry(&self, i: usize) -> usize {
         debug_assert!(i < self.num_ops);
         24 * self.num_ops + 145 * i
     }
-    pub fn wire_ith_carry_l(&self, i: usize) -> usize {
+    pub fn wire_ith_carry_l(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * self.num_ops + 145 * i + 1
+        debug_assert!(j < 8);
+        24 * self.num_ops + 145 * i + 1 + j
     }
-    pub fn wire_ith_carry_r(&self, i: usize) -> usize {
+    pub fn wire_ith_carry_r(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * self.num_ops + 145 * i + 9
+        debug_assert!(j < 8);
+        24 * self.num_ops + 145 * i + 9 + j
     }
     pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
@@ -108,25 +113,30 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
             let carry = vars.local_wires[self.wire_ith_carry(i)];
 
             for j in 0..8 {
-                input_x[j] = vars.local_wires[self.wire_ith_input_x(i) + j];
-                input_y[j] = vars.local_wires[self.wire_ith_input_y(i) + j];
-                output_result[j] = vars.local_wires[self.wire_ith_output_result(i) + j];
-                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i) + j];
-                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i) + j];
+                input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
+                input_y[j] = vars.local_wires[self.wire_ith_input_y(i, j)];
+                output_result[j] = vars.local_wires[self.wire_ith_output_result(i, j)];
+                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i, j)];
+                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i, j)];
             }
 
             let base = F::Extension::from_canonical_u64(1 << 32u64);
             let mut results_l = vec![F::Extension::ZERO; 8];
             let mut results_r = vec![F::Extension::ZERO; 8];
+            let mut last_carry_l = F::Extension::ZERO;
+            let mut last_carry_r = F::Extension::ZERO;
 
             for j in 0..8 {
-                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base;
+                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base + last_carry_l;
                 results_r[j] = output_result[j]
                     + carry * F::Extension::from_canonical_u32(NONNATIVE_BASE[j])
-                    + carry_r[j] * base;
+                    + carry_r[j] * base
+                    + last_carry_r;
                 constraints.push(results_r[j] - results_l[j]);
                 constraints.push(carry_l[j] * (F::Extension::ONE - carry_l[j]));
                 constraints.push(carry_r[j] * (F::Extension::ONE - carry_r[j]));
+                last_carry_l = carry_l[j];
+                last_carry_r = carry_r[j];
             }
             constraints.push(carry * (F::Extension::ONE - carry));
 
@@ -223,25 +233,30 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
             let carry = vars.local_wires[self.wire_ith_carry(i)];
 
             for j in 0..8 {
-                input_x[j] = vars.local_wires[self.wire_ith_input_x(i) + j];
-                input_y[j] = vars.local_wires[self.wire_ith_input_y(i) + j];
-                output_result[j] = vars.local_wires[self.wire_ith_output_result(i) + j];
-                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i) + j];
-                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i) + j];
+                input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
+                input_y[j] = vars.local_wires[self.wire_ith_input_y(i, j)];
+                output_result[j] = vars.local_wires[self.wire_ith_output_result(i, j)];
+                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i, j)];
+                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i, j)];
             }
 
             let base = F::from_canonical_u64(1 << 32u64);
             let mut results_l = vec![P::ZEROS; 8];
             let mut results_r = vec![P::ZEROS; 8];
+            let mut last_carry_l = P::ZEROS;
+            let mut last_carry_r = P::ZEROS;
 
             for j in 0..8 {
-                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base.clone();
+                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base.clone() + last_carry_l;
                 results_r[j] = output_result[j]
                     + carry * F::from_canonical_u32(NONNATIVE_BASE[j])
-                    + carry_r[j] * base.clone();
+                    + carry_r[j] * base.clone()
+                    + last_carry_r;
                 yield_constr.one(results_r[j] - results_l[j]);
                 yield_constr.one(carry_l[j] * (P::ONES - carry_l[j]));
                 yield_constr.one(carry_r[j] * (P::ONES - carry_r[j]));
+                last_carry_l = carry_l[j];
+                last_carry_r = carry_r[j];
             }
             yield_constr.one(carry * (P::ONES - carry));
 
@@ -280,11 +295,12 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
 
-        let x_base = self.gate.wire_ith_input_x(self.i);
-        let y_base = self.gate.wire_ith_input_y(self.i);
-
-        let x_range: Vec<_> = (0..8).map(|i| local_target(x_base + i)).collect();
-        let y_range: Vec<_> = (0..8).map(|i| local_target(y_base + i)).collect();
+        let x_range: Vec<_> = (0..8)
+            .map(|i| local_target(self.gate.wire_ith_input_x(self.i, i)))
+            .collect();
+        let y_range: Vec<_> = (0..8)
+            .map(|i| local_target(self.gate.wire_ith_input_y(self.i, i)))
+            .collect();
 
         [x_range, y_range].concat()
     }
@@ -303,8 +319,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         let mut input_y_u32s = vec![0u32; 8];
 
         for j in 0..8 {
-            input_x[j] = get_local_wire(self.gate.wire_ith_input_x(self.i) + j);
-            input_y[j] = get_local_wire(self.gate.wire_ith_input_y(self.i) + j);
+            input_x[j] = get_local_wire(self.gate.wire_ith_input_x(self.i, j));
+            input_y[j] = get_local_wire(self.gate.wire_ith_input_y(self.i, j));
             input_x_u32s[j] = input_x[j].to_canonical_u64() as u32;
             input_y_u32s[j] = input_y[j].to_canonical_u64() as u32;
         }
@@ -324,32 +340,23 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         } else {
             sum_biguint
         };
-        let output_result_u32s = output_result_bigutint.to_u32_digits();
+        let mut output_result_u32s = output_result_bigutint.to_u32_digits();
+        output_result_u32s.resize(8, 0u32);
 
         let base = F::from_canonical_u64(1 << 32u64);
         let mut output_result = vec![F::ZERO; 8];
         let mut carry_l = vec![F::ZERO; 8];
         let mut carry_r = vec![F::ZERO; 8];
-        let output_result_wire_pos = self.gate.wire_ith_output_result(self.i);
-        let carry_l_wire_pos = self.gate.wire_ith_carry_l(self.i);
-        let carry_r_wire_pos = self.gate.wire_ith_carry_r(self.i);
         out_buffer.set_wire(local_wire(self.gate.wire_ith_carry(self.i)), carry.clone());
+        let mut last_carry_l = F::ZERO;
+        let mut last_carry_r = F::ZERO;
         for j in 0..8 {
             output_result[j] = F::from_canonical_u32(output_result_u32s[j]);
             out_buffer.set_wire(
-                local_wire(output_result_wire_pos + j),
+                local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result[j].clone(),
             );
-            carry_l[j] = if (input_x[j].clone() + input_y[j].clone()).to_canonical_u64()
-                > base.to_canonical_u64()
-            {
-                F::ONE
-            } else {
-                F::ZERO
-            };
-            out_buffer.set_wire(local_wire(carry_l_wire_pos + j), carry_l[j].clone());
-            carry_r[j] = if (output_result[j].clone()
-                + F::from_canonical_u32(NONNATIVE_BASE[j]) * carry)
+            carry_l[j] = if (input_x[j].clone() + input_y[j].clone() + last_carry_l)
                 .to_canonical_u64()
                 > base.to_canonical_u64()
             {
@@ -357,7 +364,26 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             } else {
                 F::ZERO
             };
-            out_buffer.set_wire(local_wire(carry_r_wire_pos + j), carry_r[j].clone());
+            out_buffer.set_wire(
+                local_wire(self.gate.wire_ith_carry_l(self.i, j)),
+                carry_l[j].clone(),
+            );
+            carry_r[j] = if (output_result[j].clone()
+                + F::from_canonical_u32(NONNATIVE_BASE[j]) * carry
+                + last_carry_r)
+                .to_canonical_u64()
+                > base.to_canonical_u64()
+            {
+                F::ONE
+            } else {
+                F::ZERO
+            };
+            out_buffer.set_wire(
+                local_wire(self.gate.wire_ith_carry_r(self.i, j)),
+                carry_r[j].clone(),
+            );
+            last_carry_l = carry_l[j].clone();
+            last_carry_r = carry_r[j].clone();
         }
 
         for j in 0..8 {
