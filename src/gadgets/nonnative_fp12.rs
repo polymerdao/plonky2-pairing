@@ -668,7 +668,7 @@ mod tests {
         let y_ff = FF::rand();
         let sum_ff = x_ff + y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -695,7 +695,7 @@ mod tests {
         let y_ff = FF::rand();
         let diff_ff = x_ff - y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -722,7 +722,7 @@ mod tests {
 
         let product_ff = x_ff * y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -747,7 +747,7 @@ mod tests {
         let x_ff = FF::rand();
         let neg_x_ff = -x_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -771,7 +771,7 @@ mod tests {
         let x_ff = FF::rand();
         let inv_x_ff = x_ff.inverse();
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -795,7 +795,7 @@ mod tests {
         let x_ff = FF::rand();
         let square_x_ff = x_ff.square();
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -816,7 +816,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -990,7 +990,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 

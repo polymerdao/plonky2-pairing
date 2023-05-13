@@ -712,8 +712,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 #[cfg(test)]
 mod tests {
     use crate::field::bn128_base::Bn128Base;
-    use crate::gadgets::biguint::BigUintTarget;
-    use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
+    use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
     use anyhow::Result;
     use log::LevelFilter;
     use plonky2::field::types::{Field, PrimeField, Sample};
@@ -721,8 +720,6 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2_u32::gadgets::arithmetic_u32::CircuitBuilderU32;
-    use std::marker::PhantomData;
 
     #[test]
     fn test_nonnative_add() -> Result<()> {
@@ -736,8 +733,8 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let x_ff = FF::ONE;
-        let y_ff = FF::TWO;
+        let x_ff = FF::rand();
+        let y_ff = FF::rand();
         let sum_ff = x_ff + y_ff;
 
         let config = CircuitConfig::pairing_config();
@@ -749,81 +746,6 @@ mod tests {
         let sum = builder.add_nonnative(&x, &y);
 
         let sum_expected = builder.constant_nonnative(sum_ff);
-        builder.connect_nonnative(&sum, &sum_expected);
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof)
-    }
-
-    #[test]
-    fn test_nonnative_add2() -> Result<()> {
-        let mut builder = env_logger::Builder::from_default_env();
-        builder.format_timestamp(None);
-        builder.filter_level(LevelFilter::Info);
-        builder.try_init()?;
-
-        type FF = Bn128Base;
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let config = CircuitConfig::pairing_config();
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let u32x_target = builder.constant_u32(0xffffffff);
-        let u32y_target = builder.constant_u32(1);
-        let u32sum_target = builder.constant_u32(1);
-        let u320_target = builder.constant_u32(0);
-
-        let x = NonNativeTarget::<FF> {
-            value: BigUintTarget {
-                limbs: vec![
-                    u32x_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                ],
-            },
-            _phantom: PhantomData,
-        };
-        let y = NonNativeTarget::<FF> {
-            value: BigUintTarget {
-                limbs: vec![
-                    u32y_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                ],
-            },
-            _phantom: PhantomData,
-        };
-        let sum = builder.add_nonnative(&x, &y);
-        let sum_expected = NonNativeTarget::<FF> {
-            value: BigUintTarget {
-                limbs: vec![
-                    u320_target,
-                    u32sum_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                ],
-            },
-            _phantom: PhantomData,
-        };
-
         builder.connect_nonnative(&sum, &sum_expected);
 
         let data = builder.build::<C>();
@@ -848,7 +770,7 @@ mod tests {
         let h_ff = FF::rand();
         let sum_ff = a_ff + b_ff + c_ff + d_ff + e_ff + f_ff + g_ff + h_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -885,7 +807,7 @@ mod tests {
         }
         let diff_ff = x_ff - y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -912,7 +834,7 @@ mod tests {
         let y_ff = FF::rand();
         let product_ff = x_ff * y_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -937,7 +859,7 @@ mod tests {
         let x_ff = FF::rand();
         let neg_x_ff = -x_ff;
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -961,7 +883,7 @@ mod tests {
         let x_ff = FF::rand();
         let inv_x_ff = x_ff.inverse();
 
-        let config = CircuitConfig::standard_ecc_config();
+        let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 

@@ -121,18 +121,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeAddGa
             }
 
             let base = F::Extension::from_canonical_u64(1 << 32u64);
-            let mut results_l = vec![F::Extension::ZERO; 8];
-            let mut results_r = vec![F::Extension::ZERO; 8];
             let mut last_carry_l = F::Extension::ZERO;
             let mut last_carry_r = F::Extension::ZERO;
 
             for j in 0..8 {
-                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base + last_carry_l;
-                results_r[j] = output_result[j]
+                let results_l = input_x[j]
+                    + input_y[j]
+                    + (F::Extension::ONE - carry_l[j]) * base
+                    + last_carry_l;
+                let results_r = output_result[j]
                     + carry * F::Extension::from_canonical_u32(NONNATIVE_BASE[j])
-                    + carry_r[j] * base
+                    + (F::Extension::ONE - carry_r[j]) * base
                     + last_carry_r;
-                constraints.push(results_r[j] - results_l[j]);
+                constraints.push(results_r - results_l);
                 constraints.push(carry_l[j] * (F::Extension::ONE - carry_l[j]));
                 constraints.push(carry_r[j] * (F::Extension::ONE - carry_r[j]));
                 last_carry_l = carry_l[j];
@@ -241,18 +242,17 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
             }
 
             let base = F::from_canonical_u64(1 << 32u64);
-            let mut results_l = vec![P::ZEROS; 8];
-            let mut results_r = vec![P::ZEROS; 8];
             let mut last_carry_l = P::ZEROS;
             let mut last_carry_r = P::ZEROS;
 
             for j in 0..8 {
-                results_l[j] = input_x[j] + input_y[j] + carry_l[j] * base.clone() + last_carry_l;
-                results_r[j] = output_result[j]
+                let results_l =
+                    input_x[j] + input_y[j] + (P::ONES - carry_l[j]) * base.clone() + last_carry_l;
+                let results_r = output_result[j]
                     + carry * F::from_canonical_u32(NONNATIVE_BASE[j])
-                    + carry_r[j] * base.clone()
+                    + (P::ONES - carry_r[j]) * base.clone()
                     + last_carry_r;
-                yield_constr.one(results_r[j] - results_l[j]);
+                yield_constr.one(results_r - results_l);
                 yield_constr.one(carry_l[j] * (P::ONES - carry_l[j]));
                 yield_constr.one(carry_r[j] * (P::ONES - carry_r[j]));
                 last_carry_l = carry_l[j];
@@ -344,21 +344,18 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         output_result_u32s.resize(8, 0u32);
 
         let base = F::from_canonical_u64(1 << 32u64);
-        let mut output_result = vec![F::ZERO; 8];
-        let mut carry_l = vec![F::ZERO; 8];
-        let mut carry_r = vec![F::ZERO; 8];
         out_buffer.set_wire(local_wire(self.gate.wire_ith_carry(self.i)), carry.clone());
         let mut last_carry_l = F::ZERO;
         let mut last_carry_r = F::ZERO;
         for j in 0..8 {
-            output_result[j] = F::from_canonical_u32(output_result_u32s[j]);
+            let output_result = F::from_canonical_u32(output_result_u32s[j]);
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
-                output_result[j].clone(),
+                output_result.clone(),
             );
-            carry_l[j] = if (input_x[j].clone() + input_y[j].clone() + last_carry_l)
+            let carry_l = if (input_x[j].clone() + input_y[j].clone() + last_carry_l)
                 .to_canonical_u64()
-                > base.to_canonical_u64()
+                >= base.to_canonical_u64()
             {
                 F::ONE
             } else {
@@ -366,13 +363,13 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             };
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_carry_l(self.i, j)),
-                carry_l[j].clone(),
+                carry_l.clone(),
             );
-            carry_r[j] = if (output_result[j].clone()
+            let carry_r = if (output_result.clone()
                 + F::from_canonical_u32(NONNATIVE_BASE[j]) * carry
                 + last_carry_r)
                 .to_canonical_u64()
-                > base.to_canonical_u64()
+                >= base.to_canonical_u64()
             {
                 F::ONE
             } else {
@@ -380,17 +377,17 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             };
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_carry_r(self.i, j)),
-                carry_r[j].clone(),
+                carry_r.clone(),
             );
-            last_carry_l = carry_l[j].clone();
-            last_carry_r = carry_r[j].clone();
+            last_carry_l = carry_l.clone();
+            last_carry_r = carry_r.clone();
         }
 
         for j in 0..8 {
             let num_limbs = NonnativeAddGate::<F, D>::num_limbs();
             let limb_base = 1 << NonnativeAddGate::<F, D>::limb_bits();
             let output_limbs: Vec<_> = (0..num_limbs)
-                .scan(output_result[j].to_canonical_u64(), |acc, _| {
+                .scan(output_result_u32s[j] as u64, |acc, _| {
                     let tmp = *acc % limb_base;
                     *acc /= limb_base;
                     Some(F::from_canonical_u64(tmp))
