@@ -68,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> U32ToU28Gate<F, D> {
     pub fn limb_bits() -> usize {
         2
     }
-    // We have 16 2-bit limbs for a 32-bit limb.
+    // We have 14 2-bit limbs for a 28-bit limb.
     pub fn num_limbs() -> usize {
         28 / Self::limb_bits()
     }
