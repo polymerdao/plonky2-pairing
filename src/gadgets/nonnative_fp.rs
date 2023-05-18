@@ -712,14 +712,20 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 #[cfg(test)]
 mod tests {
     use crate::field::bn128_base::Bn128Base;
-    use crate::gadgets::nonnative_fp::CircuitBuilderNonNative;
+    use crate::gadgets::biguint::BigUintTarget;
+    use crate::gadgets::gates::u28_to_u32::U28ToU32Gate;
+    use crate::gadgets::gates::u32_to_u28::U32ToU28Gate;
+    use crate::gadgets::nonnative_fp::U32Target;
+    use crate::gadgets::nonnative_fp::{CircuitBuilderNonNative, NonNativeTarget};
     use anyhow::Result;
     use log::LevelFilter;
     use plonky2::field::types::{Field, PrimeField, Sample};
+    use plonky2::iop::target::Target;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use std::marker::PhantomData;
 
     #[test]
     fn test_nonnative_add() -> Result<()> {
@@ -744,6 +750,78 @@ mod tests {
         let x = builder.constant_nonnative(x_ff);
         let y = builder.constant_nonnative(y_ff);
         let sum = builder.add_nonnative(&x, &y);
+
+        let sum_expected = builder.constant_nonnative(sum_ff);
+        builder.connect_nonnative(&sum, &sum_expected);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_nonnative_conversion_gates() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
+        type FF = Bn128Base;
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let x_ff = FF::rand();
+        let y_ff = FF::rand();
+        let sum_ff = x_ff + y_ff;
+
+        let config = CircuitConfig::pairing_config();
+        let pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+
+        let x = builder.constant_nonnative(x_ff);
+
+        let gate = U32ToU28Gate::<F, D>::new_from_config(&config);
+        let (row, copy) = builder.find_slot(gate, &[], &[]);
+        for i in 0..8 {
+            builder.connect(
+                Target::wire(row, gate.wire_ith_input(copy, i)),
+                x.value.limbs[i].0,
+            );
+        }
+        let mut targets0 = Vec::new();
+        for i in 0..10 {
+            targets0.push(U32Target {
+                0: Target::wire(row, gate.wire_ith_output_result(copy, i)),
+            });
+        }
+
+        let x_10limbs = NonNativeTarget {
+            value: BigUintTarget { limbs: targets0 },
+            _phantom: PhantomData::<FF>,
+        };
+
+        let gate = U28ToU32Gate::<F, D>::new_from_config(&config);
+        let (row, copy) = builder.find_slot(gate, &[], &[]);
+        for i in 0..10 {
+            builder.connect(
+                Target::wire(row, gate.wire_ith_input(copy, i)),
+                x_10limbs.value.limbs[i].0,
+            );
+        }
+        let mut targets1 = Vec::new();
+        for i in 0..8 {
+            targets1.push(U32Target {
+                0: Target::wire(row, gate.wire_ith_output_result(copy, i)),
+            });
+        }
+
+        let new_x = NonNativeTarget {
+            value: BigUintTarget { limbs: targets1 },
+            _phantom: PhantomData::<FF>,
+        };
+        let y = builder.constant_nonnative(y_ff);
+        let sum = builder.add_nonnative(&new_x, &y);
 
         let sum_expected = builder.constant_nonnative(sum_ff);
         builder.connect_nonnative(&sum, &sum_expected);
