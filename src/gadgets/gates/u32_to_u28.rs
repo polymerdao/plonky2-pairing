@@ -204,8 +204,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 input[j] = vars.local_wires[self.wire_ith_input(i, j)];
             }
 
-            let mut output_result = vec![P::ZEROS; 8];
-            for j in 0..8 {
+            let mut output_result = vec![P::ZEROS; 10];
+            for j in 0..10 {
                 output_result[j] = vars.local_wires[self.wire_ith_output_result(i, j)];
             }
 
@@ -284,6 +284,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F> for U32ToU
             let this_limb: BigUint =
                 (input_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
             let output_result = F::from_canonical_u32(this_limb.to_u32().unwrap());
+            //dbg!(self.gate.wire_ith_output_result(self.i, j));
+            //dbg!(output_result.clone());
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result.clone(),
@@ -303,6 +305,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F> for U32ToU
 
             for k in 0..num_limbs {
                 let wire = local_wire(self.gate.wire_ith_input_jth_limb_kth_limb(self.i, j, k));
+                //dbg!(wire);
+                //dbg!(output_limbs[k].clone());
                 out_buffer.set_wire(wire, output_limbs[k].clone());
             }
         }

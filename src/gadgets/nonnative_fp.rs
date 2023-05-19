@@ -725,6 +725,7 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2_u32::gadgets::arithmetic_u32::CircuitBuilderU32;
     use std::marker::PhantomData;
 
     #[test]
@@ -772,14 +773,29 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
 
         let x_ff = FF::rand();
-        let y_ff = FF::rand();
-        let sum_ff = x_ff + y_ff;
 
         let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config.clone());
 
         let x = builder.constant_nonnative(x_ff);
+        // let u32x_target = builder.constant_u32(0xffffffff);
+        // let u320_target = builder.constant_u32(0);
+        // let x = NonNativeTarget::<FF> {
+        //     value: BigUintTarget {
+        //         limbs: vec![
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u32x_target,
+        //         ],
+        //     },
+        //     _phantom: PhantomData,
+        // };
 
         let gate = U32ToU28Gate::<F, D>::new_from_config(&config);
         let (row, copy) = builder.find_slot(gate, &[], &[]);
@@ -789,42 +805,31 @@ mod tests {
                 x.value.limbs[i].0,
             );
         }
-        let mut targets0 = Vec::new();
+        let mut x_targets = Vec::new();
         for i in 0..10 {
-            targets0.push(U32Target {
-                0: Target::wire(row, gate.wire_ith_output_result(copy, i)),
-            });
+            x_targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
         }
 
-        let x_10limbs = NonNativeTarget {
-            value: BigUintTarget { limbs: targets0 },
-            _phantom: PhantomData::<FF>,
-        };
-
-        let gate = U28ToU32Gate::<F, D>::new_from_config(&config);
-        let (row, copy) = builder.find_slot(gate, &[], &[]);
+        let gate2 = U28ToU32Gate::<F, D>::new_from_config(&config);
+        let (row, copy) = builder.find_slot(gate2, &[], &[]);
         for i in 0..10 {
             builder.connect(
-                Target::wire(row, gate.wire_ith_input(copy, i)),
-                x_10limbs.value.limbs[i].0,
+                Target::wire(row, gate2.wire_ith_input(copy, i)),
+                x_targets[i],
             );
         }
-        let mut targets1 = Vec::new();
+        let mut targets = Vec::new();
         for i in 0..8 {
-            targets1.push(U32Target {
-                0: Target::wire(row, gate.wire_ith_output_result(copy, i)),
+            targets.push(U32Target {
+                0: Target::wire(row, gate2.wire_ith_output_result(copy, i)),
             });
         }
 
-        let new_x = NonNativeTarget {
-            value: BigUintTarget { limbs: targets1 },
-            _phantom: PhantomData::<FF>,
+        let new_x = NonNativeTarget::<FF> {
+            value: BigUintTarget { limbs: targets },
+            _phantom: PhantomData,
         };
-        let y = builder.constant_nonnative(y_ff);
-        let sum = builder.add_nonnative(&new_x, &y);
-
-        let sum_expected = builder.constant_nonnative(sum_ff);
-        builder.connect_nonnative(&sum, &sum_expected);
+        builder.connect_nonnative(&x, &new_x);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();

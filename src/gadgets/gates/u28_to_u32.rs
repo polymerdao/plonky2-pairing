@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> U28ToU32Gate<F, D> {
     pub fn wire_ith_output_result(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 8);
-        18 * i + 8 + j
+        18 * i + 10 + j
     }
     pub fn wire_ith_output_jth_limb_kth_limb(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
@@ -231,7 +231,7 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
             for j in 0..10 {
                 let mut combined_limbs = P::ZEROS;
                 let limb_base = F::from_canonical_u64(1u64 << Self::limb_bits());
-                let num_limbs = if j == 9 { 2 } else { Self::num_limbs() };
+                let num_limbs = if j == 9 { 2 } else { 14 };
                 for k in (0..num_limbs).rev() {
                     let this_limb =
                         vars.local_wires[self.wire_ith_input_jth_limb_kth_limb(i, j, k)];
@@ -275,12 +275,17 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F> for U28ToU
             let input = get_local_wire(self.gate.wire_ith_input(self.i, j));
             let input_u32s = input.to_canonical_u64() as u32;
             input_biguint += BigUint::from_u32(input_u32s).unwrap();
-            input_biguint = input_biguint << 28;
+            if j != 0 {
+                input_biguint = input_biguint << 28;
+            };
         }
 
-        let output_u32s = input_biguint.to_u32_digits();
+        let mut output_u32s = input_biguint.to_u32_digits();
+        output_u32s.resize(8, 0);
         for j in 0..8 {
             let output_result = F::from_canonical_u32(output_u32s[j]);
+            //dbg!(output_result.clone());
+            //dbg!(self.gate.wire_ith_output_result(self.i, j));
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result.clone(),
