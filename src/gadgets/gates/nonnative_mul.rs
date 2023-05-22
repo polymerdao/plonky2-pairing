@@ -40,53 +40,50 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
     }
 
     pub(crate) fn num_ops(config: &CircuitConfig) -> usize {
-        let wires_per_op = 169;
-        let routed_wires_per_op = 24;
+        let wires_per_op = 296;
+        let routed_wires_per_op = 30;
         (config.num_wires / wires_per_op).min(config.num_routed_wires / routed_wires_per_op)
     }
 
     pub fn wire_ith_input_x(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        24 * i + j
+        debug_assert!(j < 10);
+        30 * i + j
     }
     pub fn wire_ith_input_y(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        24 * i + 8 + j
+        debug_assert!(j < 10);
+        30 * i + 10 + j
     }
     pub fn wire_ith_output_result(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        24 * i + 16 + j
+        debug_assert!(j < 10);
+        30 * i + 20 + j
     }
-    pub fn wire_ith_carry(&self, i: usize) -> usize {
+    pub fn wire_ith_quotient(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        24 * self.num_ops + 145 * i
+        debug_assert!(j < 10);
+        30 * self.num_ops + 266 * i
     }
-    pub fn wire_ith_carry_l(&self, i: usize, j: usize) -> usize {
+    pub fn wire_ith_output_jth_limb28_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        24 * self.num_ops + 145 * i + 1 + j
+        debug_assert!(j < 10);
+        debug_assert!(k < 14);
+        30 * self.num_ops + 266 * i + 10 + 14 * j + k
     }
-    pub fn wire_ith_carry_r(&self, i: usize, j: usize) -> usize {
+    pub fn wire_ith_quotient_jth_limb28_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        24 * self.num_ops + 145 * i + 9 + j
-    }
-    pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
-        debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        debug_assert!(k < 16);
-        24 * self.num_ops + 145 * i + 17 + 16 * j + k
+        debug_assert!(j < 10);
+        debug_assert!(k < 14);
+        30 * self.num_ops + 266 * i + 138 + 14 * j + k
     }
 
     pub fn limb_bits() -> usize {
         2
     }
-    // We have 16 2-bit limbs for a 32-bit limb.
+    // We have 14 2-bit limbs for a 28-bit limb.
     pub fn num_limbs() -> usize {
-        32 / Self::limb_bits()
+        28 / Self::limb_bits()
     }
 }
 
@@ -201,7 +198,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
     }
 
     fn num_wires(&self) -> usize {
-        169
+        296
     }
 
     fn num_constants(&self) -> usize {
@@ -213,7 +210,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
     }
 
     fn num_constraints(&self) -> usize {
-        self.num_ops * (33 + 16 * 8)
+        self.num_ops * (10 + (10 + 128) * 2)
     }
 }
 
