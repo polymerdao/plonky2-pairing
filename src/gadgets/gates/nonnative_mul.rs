@@ -1,5 +1,5 @@
 use core::marker::PhantomData;
-use num::BigUint;
+use num::{BigUint, FromPrimitive, ToPrimitive, Zero};
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
@@ -69,13 +69,37 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 10);
         debug_assert!(k < 14);
+        debug_assert!(j != 9 || k < 2);
         30 * self.num_ops + 266 * i + 10 + 14 * j + k
     }
-    pub fn wire_ith_quotient_jth_limb28_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
+    pub fn wire_ith_quotient_jth_limb28_kth_limb2_bit(
+        &self,
+        i: usize,
+        j: usize,
+        k: usize,
+    ) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 10);
         debug_assert!(k < 14);
+        debug_assert!(j != 9 || k < 2);
         30 * self.num_ops + 266 * i + 138 + 14 * j + k
+    }
+    pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
+        debug_assert!(i < self.num_ops);
+        debug_assert!(j < 8);
+        debug_assert!(k < 16);
+        30 * self.num_ops + 266 * i + 10 + 16 * j + k
+    }
+    pub fn wire_ith_quotient_jth_limb32_kth_limb2_bit(
+        &self,
+        i: usize,
+        j: usize,
+        k: usize,
+    ) -> usize {
+        debug_assert!(i < self.num_ops);
+        debug_assert!(j < 8);
+        debug_assert!(k < 16);
+        30 * self.num_ops + 266 * i + 138 + 16 * j + k
     }
 
     pub fn limb_bits() -> usize {
@@ -190,7 +214,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                         i,
                         _phantom: PhantomData,
                     }
-                        .adapter(),
+                    .adapter(),
                 );
                 g
             })
@@ -215,7 +239,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
-for NonnativeMulGate<F, D>
+    for NonnativeMulGate<F, D>
 {
     fn eval_unfiltered_base_packed<P: PackedField<Scalar = F>>(
         &self,
@@ -287,7 +311,7 @@ struct NonnativeMulGenerator<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
-for NonnativeMulGenerator<F, D>
+    for NonnativeMulGenerator<F, D>
 {
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
@@ -310,93 +334,80 @@ for NonnativeMulGenerator<F, D>
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
-        let mut input_x = vec![F::ZERO; 8];
-        let mut input_y = vec![F::ZERO; 8];
-        let mut input_x_u32s = vec![0u32; 8];
-        let mut input_y_u32s = vec![0u32; 8];
+        let mut input_x_biguint = BigUint::zero();
+        let mut input_y_biguint = BigUint::zero();
+        for j in (0..10).rev() {
+            let input_x = get_local_wire(self.gate.wire_ith_input_x(self.i, j));
+            let input_x_u32 = input_x.to_canonical_u64() as u32;
+            input_x_biguint += BigUint::from_u32(input_x_u32).unwrap();
+            if j != 0 {
+                input_x_biguint = input_x_biguint << 28;
+            };
 
-        for j in 0..8 {
-            input_x[j] = get_local_wire(self.gate.wire_ith_input_x(self.i, j));
-            input_y[j] = get_local_wire(self.gate.wire_ith_input_y(self.i, j));
-            input_x_u32s[j] = input_x[j].to_canonical_u64() as u32;
-            input_y_u32s[j] = input_y[j].to_canonical_u64() as u32;
+            let input_y = get_local_wire(self.gate.wire_ith_input_y(self.i, j));
+            let input_y_u32 = input_y.to_canonical_u64() as u32;
+            input_y_biguint += BigUint::from_u32(input_y_u32).unwrap();
+            if j != 0 {
+                input_y_biguint = input_y_biguint << 28;
+            };
         }
 
-        let input_x_biguint = BigUint::from_slice(&input_x_u32s);
-        let input_y_biguint = BigUint::from_slice(&input_y_u32s);
+        let result_biguint = input_x_biguint * input_y_biguint;
+        let output_biguint = result_biguint % BigUint::from_slice(&NONNATIVE_BASE);
+        let quotient_biguint = result_biguint.clone() / BigUint::from_slice(&NONNATIVE_BASE);
 
-        let sum_biguint = input_x_biguint + input_y_biguint;
-        let nonnative_base_biguint = BigUint::from_slice(&NONNATIVE_BASE);
-        let carry = if sum_biguint > nonnative_base_biguint {
-            F::ONE
-        } else {
-            F::ZERO
-        };
-        let output_result_bigutint = if sum_biguint >= nonnative_base_biguint {
-            sum_biguint - nonnative_base_biguint
-        } else {
-            sum_biguint
-        };
-        let mut output_result_u32s = output_result_bigutint.to_u32_digits();
-        output_result_u32s.resize(8, 0u32);
-
-        let base = F::from_canonical_u64(1 << 32u64);
-        out_buffer.set_wire(local_wire(self.gate.wire_ith_carry(self.i)), carry.clone());
-        let mut last_carry_l = F::ZERO;
-        let mut last_carry_r = F::ZERO;
-        for j in 0..8 {
-            let output_result = F::from_canonical_u32(output_result_u32s[j]);
+        for j in 0..10 {
+            let this_limb: BigUint =
+                (output_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
+            let output_result = F::from_canonical_u32(this_limb.to_u32().unwrap());
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result.clone(),
             );
-            let carry_l = if (input_x[j].clone() + input_y[j].clone() + last_carry_l)
-                .to_canonical_u64()
-                >= base.to_canonical_u64()
-            {
-                F::ONE
-            } else {
-                F::ZERO
-            };
+
+            let this_limb: BigUint =
+                (quotient_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
+            let output_result = F::from_canonical_u32(this_limb.to_u32().unwrap());
             out_buffer.set_wire(
-                local_wire(self.gate.wire_ith_carry_l(self.i, j)),
-                carry_l.clone(),
+                local_wire(self.gate.wire_ith_quotient(self.i, j)),
+                output_result.clone(),
             );
-            let carry_r = if (output_result.clone()
-                + F::from_canonical_u32(NONNATIVE_BASE[j]) * carry
-                + last_carry_r)
-                .to_canonical_u64()
-                >= base.to_canonical_u64()
-            {
-                F::ONE
-            } else {
-                F::ZERO
-            };
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_ith_carry_r(self.i, j)),
-                carry_r.clone(),
-            );
-            last_carry_l = carry_l.clone();
-            last_carry_r = carry_r.clone();
         }
 
+        let output_u32s = output_biguint.to_u32_digits();
+        let quotient_u32s = quotient_biguint.to_u32_digits();
         for j in 0..8 {
-            let num_limbs = NonnativeMulGate::<F, D>::num_limbs();
-            let limb_base = 1 << NonnativeMulGate::<F, D>::limb_bits();
+            let num_limbs = 16;
+            let limb_base = 1 << NonnativeMulGate::limb_bits();
+
             let output_limbs: Vec<_> = (0..num_limbs)
-                .scan(output_result_u32s[j] as u64, |acc, _| {
+                .scan(output_u32s[j] as u64, |acc, _| {
                     let tmp = *acc % limb_base;
                     *acc /= limb_base;
                     Some(F::from_canonical_u64(tmp))
                 })
                 .collect();
-
             for k in 0..num_limbs {
                 let wire = local_wire(
                     self.gate
                         .wire_ith_output_jth_limb32_kth_limb2_bit(self.i, j, k),
                 );
                 out_buffer.set_wire(wire, output_limbs[k].clone());
+            }
+
+            let quotient_limbs: Vec<_> = (0..num_limbs)
+                .scan(quotient_u32s[j] as u64, |acc, _| {
+                    let tmp = *acc % limb_base;
+                    *acc /= limb_base;
+                    Some(F::from_canonical_u64(tmp))
+                })
+                .collect();
+            for k in 0..num_limbs {
+                let wire = local_wire(
+                    self.gate
+                        .wire_ith_quotient_jth_limb32_kth_limb2_bit(self.i, j, k),
+                );
+                out_buffer.set_wire(wire, quotient_limbs[k].clone());
             }
         }
     }
