@@ -126,49 +126,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
         let mut constraints = Vec::with_capacity(self.num_constraints());
         for i in 0..self.num_ops {
-            let mut input_x = vec![F::Extension::ZERO; 8];
-            let mut input_y = vec![F::Extension::ZERO; 8];
-            let mut output_result = vec![F::Extension::ZERO; 8];
-            let mut carry_l = vec![F::Extension::ZERO; 8];
-            let mut carry_r = vec![F::Extension::ZERO; 8];
-            let carry = vars.local_wires[self.wire_ith_carry(i)];
+            let mut input_x = vec![F::Extension::ZERO; 10];
+            let mut input_y = vec![F::Extension::ZERO; 10];
+            let mut output_result = vec![F::Extension::ZERO; 10];
+            let mut quotient = vec![F::Extension::ZERO; 10];
 
-            for j in 0..8 {
+            for j in 0..10 {
                 input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
                 input_y[j] = vars.local_wires[self.wire_ith_input_y(i, j)];
                 output_result[j] = vars.local_wires[self.wire_ith_output_result(i, j)];
-                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i, j)];
-                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i, j)];
+                quotient[j] = vars.local_wires[self.wire_ith_quotient(i, j)];
             }
 
-            let base = F::Extension::from_canonical_u64(1 << 32u64);
-            let mut last_carry_l = F::Extension::ZERO;
-            let mut last_carry_r = F::Extension::ZERO;
-
-            for j in 0..8 {
-                let results_l = input_x[j]
-                    + input_y[j]
-                    + (F::Extension::ONE - carry_l[j]) * base
-                    + last_carry_l;
-                let results_r = output_result[j]
-                    + carry * F::Extension::from_canonical_u32(NONNATIVE_BASE[j])
-                    + (F::Extension::ONE - carry_r[j]) * base
-                    + last_carry_r;
-                constraints.push(results_r - results_l);
-                constraints.push(carry_l[j] * (F::Extension::ONE - carry_l[j]));
-                constraints.push(carry_r[j] * (F::Extension::ONE - carry_r[j]));
-                last_carry_l = carry_l[j];
-                last_carry_r = carry_r[j];
-            }
-            constraints.push(carry * (F::Extension::ONE - carry));
-
-            // Range-check output_result to be at most 32 bits.
-            for j in 0..8 {
-                let mut combined_limbs = F::Extension::ZERO;
+            // Range-check output_result and quotient to be at most 28 bits each limb.
+            for j in 0..10 {
                 let limb_base = F::Extension::from_canonical_u64(1u64 << Self::limb_bits());
-                for k in (0..Self::num_limbs()).rev() {
+                let num_limbs = if j == 9 { 2 } else { Self::num_limbs() };
+
+                let mut combined_limbs = F::Extension::ZERO;
+                for k in (0..num_limbs).rev() {
                     let this_limb =
-                        vars.local_wires[self.wire_ith_output_jth_limb32_kth_limb2_bit(i, j, k)];
+                        vars.local_wires[self.wire_ith_output_jth_limb28_kth_limb2_bit(i, j, k)];
                     let max_limb = 1 << Self::limb_bits();
                     let product = (0..max_limb)
                         .map(|x| this_limb - F::Extension::from_canonical_usize(x))
@@ -178,6 +156,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                     combined_limbs = limb_base * combined_limbs + this_limb;
                 }
                 constraints.push(combined_limbs - output_result[j]);
+
+                let mut combined_limbs = F::Extension::ZERO;
+                for k in (0..num_limbs).rev() {
+                    let this_limb =
+                        vars.local_wires[self.wire_ith_quotient_jth_limb28_kth_limb2_bit(i, j, k)];
+                    let max_limb = 1 << Self::limb_bits();
+                    let product = (0..max_limb)
+                        .map(|x| this_limb - F::Extension::from_canonical_usize(x))
+                        .product();
+                    constraints.push(product);
+
+                    combined_limbs = limb_base * combined_limbs + this_limb;
+                }
+                constraints.push(combined_limbs - quotient[j]);
             }
         }
 
@@ -247,47 +239,27 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
         mut yield_constr: StridedConstraintConsumer<P>,
     ) {
         for i in 0..self.num_ops {
-            let mut input_x = vec![P::ZEROS; 8];
-            let mut input_y = vec![P::ZEROS; 8];
-            let mut output_result = vec![P::ZEROS; 8];
-            let mut carry_l = vec![P::ZEROS; 8];
-            let mut carry_r = vec![P::ZEROS; 8];
-            let carry = vars.local_wires[self.wire_ith_carry(i)];
+            let mut input_x = vec![P::ZEROS; 10];
+            let mut input_y = vec![P::ZEROS; 10];
+            let mut output_result = vec![P::ZEROS; 10];
+            let mut quotient = vec![P::ZEROS; 10];
 
-            for j in 0..8 {
+            for j in 0..10 {
                 input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
                 input_y[j] = vars.local_wires[self.wire_ith_input_y(i, j)];
                 output_result[j] = vars.local_wires[self.wire_ith_output_result(i, j)];
-                carry_l[j] = vars.local_wires[self.wire_ith_carry_l(i, j)];
-                carry_r[j] = vars.local_wires[self.wire_ith_carry_r(i, j)];
+                quotient[j] = vars.local_wires[self.wire_ith_quotient(i, j)];
             }
 
-            let base = F::from_canonical_u64(1 << 32u64);
-            let mut last_carry_l = P::ZEROS;
-            let mut last_carry_r = P::ZEROS;
-
-            for j in 0..8 {
-                let results_l =
-                    input_x[j] + input_y[j] + (P::ONES - carry_l[j]) * base.clone() + last_carry_l;
-                let results_r = output_result[j]
-                    + carry * F::from_canonical_u32(NONNATIVE_BASE[j])
-                    + (P::ONES - carry_r[j]) * base.clone()
-                    + last_carry_r;
-                yield_constr.one(results_r - results_l);
-                yield_constr.one(carry_l[j] * (P::ONES - carry_l[j]));
-                yield_constr.one(carry_r[j] * (P::ONES - carry_r[j]));
-                last_carry_l = carry_l[j];
-                last_carry_r = carry_r[j];
-            }
-            yield_constr.one(carry * (P::ONES - carry));
-
-            // Range-check output_result to be at most 32 bits.
-            for j in 0..8 {
-                let mut combined_limbs = P::ZEROS;
+            // Range-check output_result and quotient to be at most 28 bits each limb.
+            for j in 0..10 {
                 let limb_base = F::from_canonical_u64(1u64 << Self::limb_bits());
-                for k in (0..Self::num_limbs()).rev() {
+                let num_limbs = if j == 9 { 2 } else { Self::num_limbs() };
+
+                let mut combined_limbs = P::ZEROS;
+                for k in (0..num_limbs).rev() {
                     let this_limb =
-                        vars.local_wires[self.wire_ith_output_jth_limb32_kth_limb2_bit(i, j, k)];
+                        vars.local_wires[self.wire_ith_output_jth_limb28_kth_limb2_bit(i, j, k)];
                     let max_limb = 1 << Self::limb_bits();
                     let product = (0..max_limb)
                         .map(|x| this_limb - F::from_canonical_usize(x))
@@ -297,6 +269,20 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                     combined_limbs = combined_limbs * limb_base.clone() + this_limb;
                 }
                 yield_constr.one(combined_limbs - output_result[j]);
+
+                let mut combined_limbs = P::ZEROS;
+                for k in (0..num_limbs).rev() {
+                    let this_limb =
+                        vars.local_wires[self.wire_ith_quotient_jth_limb28_kth_limb2_bit(i, j, k)];
+                    let max_limb = 1 << Self::limb_bits();
+                    let product = (0..max_limb)
+                        .map(|x| this_limb - F::from_canonical_usize(x))
+                        .product();
+                    yield_constr.one(product);
+
+                    combined_limbs = combined_limbs * limb_base.clone() + this_limb;
+                }
+                yield_constr.one(combined_limbs - quotient[j]);
             }
         }
     }
@@ -353,24 +339,24 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         }
 
         let result_biguint = input_x_biguint * input_y_biguint;
-        let output_biguint = result_biguint % BigUint::from_slice(&NONNATIVE_BASE);
+        let output_biguint = result_biguint.clone() % BigUint::from_slice(&NONNATIVE_BASE);
         let quotient_biguint = result_biguint.clone() / BigUint::from_slice(&NONNATIVE_BASE);
 
         for j in 0..10 {
-            let this_limb: BigUint =
+            let result_limb: BigUint =
                 (output_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
-            let output_result = F::from_canonical_u32(this_limb.to_u32().unwrap());
+            let output_result = F::from_canonical_u32(result_limb.to_u32().unwrap());
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result.clone(),
             );
 
-            let this_limb: BigUint =
+            let quotient_limb: BigUint =
                 (quotient_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
-            let output_result = F::from_canonical_u32(this_limb.to_u32().unwrap());
+            let quotient_result = F::from_canonical_u32(quotient_limb.to_u32().unwrap());
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_quotient(self.i, j)),
-                output_result.clone(),
+                quotient_result.clone(),
             );
         }
 
@@ -378,7 +364,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         let quotient_u32s = quotient_biguint.to_u32_digits();
         for j in 0..8 {
             let num_limbs = 16;
-            let limb_base = 1 << NonnativeMulGate::limb_bits();
+            let limb_base = 1 << 2;
 
             let output_limbs: Vec<_> = (0..num_limbs)
                 .scan(output_u32s[j] as u64, |acc, _| {
