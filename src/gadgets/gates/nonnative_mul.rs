@@ -20,8 +20,13 @@ use plonky2::plonk::vars::{
     EvaluationVarsBasePacked,
 };
 
+// 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
 const NONNATIVE_BASE: [u32; 8] = [
     0xd87cfd47, 0x3c208c16, 0x6871ca8d, 0x97816a91, 0x8181585d, 0xb85045b6, 0xe131a029, 0x30644e72,
+];
+const NONNATIVE_BASE_28: [u32; 10] = [
+    0x87cfd47, 0x208c16d, 0x1ca8d3c, 0x6a91687, 0x85d9781, 0xb681815, 0x9b85045, 0xe131a02,
+    0x0644e72, 0x3,
 ];
 
 /// A gate to perform a addition of two nonnative with 8 limbs.
@@ -171,6 +176,35 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                 }
                 constraints.push(combined_limbs - quotient[j]);
             }
+
+            let mut last_carry_left = F::Extension::ZERO;
+            let mut last_carry_right = F::Extension::ZERO;
+            let base = F::Extension::from_canonical_u32(1 << 28);
+            // For each limb, checks input_x * input_y + last_carry_left ===
+            // output_result + quotient * NONNATIVE_BASE + last_carry_right.
+            for j in 0..19 {
+                let mut left = last_carry_left;
+                let mut right = last_carry_right;
+
+                let start_index = if j < 10 { 0 } else { j - 9 };
+                let end_index = if j < 10 { j } else { 9 };
+                for k in 0..end_index - start_index + 1 {
+                    left = left + input_x[k + start_index] * input_y[end_index - k];
+                    right = right
+                        + quotient[k + start_index]
+                            * F::Extension::from_canonical_u32(NONNATIVE_BASE_28[end_index - k]);
+                }
+
+                right = if j < 10 {
+                    right + output_result[j]
+                } else {
+                    right
+                };
+                last_carry_left = left / base;
+                last_carry_right = right / base;
+
+                constraints.push(left - right + base * (last_carry_right - last_carry_left));
+            }
         }
 
         constraints
@@ -226,7 +260,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
     }
 
     fn num_constraints(&self) -> usize {
-        self.num_ops * (10 + (10 + 128) * 2)
+        self.num_ops * (19 + (10 + 128) * 2)
     }
 }
 
@@ -283,6 +317,36 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                     combined_limbs = combined_limbs * limb_base.clone() + this_limb;
                 }
                 yield_constr.one(combined_limbs - quotient[j]);
+            }
+
+            let mut last_carry_left = P::ZEROS;
+            let mut last_carry_right = P::ZEROS;
+            let base = F::from_canonical_u32(1 << 28);
+            // For each limb, checks input_x * input_y + last_carry_left ===
+            // output_result + quotient * NONNATIVE_BASE + last_carry_right.
+            for j in 0..19 {
+                let mut left = last_carry_left;
+                let mut right = last_carry_right;
+
+                let start_index = if j < 10 { 0 } else { j - 9 };
+                let end_index = if j < 10 { j } else { 9 };
+                for k in 0..end_index - start_index + 1 {
+                    left = left + input_x[k + start_index] * input_y[end_index - k];
+                    right = right
+                        + quotient[k + start_index]
+                            * F::from_canonical_u32(NONNATIVE_BASE_28[end_index - k]);
+                }
+
+                right = if j < 10 {
+                    right + output_result[j]
+                } else {
+                    right
+                };
+                last_carry_left = left / base.clone();
+                last_carry_right = right / base.clone();
+
+                yield_constr
+                    .one(left - right + (last_carry_right - last_carry_left) * base.clone());
             }
         }
     }
