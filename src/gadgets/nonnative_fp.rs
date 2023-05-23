@@ -7,7 +7,7 @@ use crate::gadgets::gates::nonnative_add::NonnativeAddGate;
 use crate::gadgets::gates::nonnative_mul::NonnativeMulGate;
 use crate::gadgets::gates::u28_to_u32::U28ToU32Gate;
 use crate::gadgets::gates::u32_to_u28::U32ToU28Gate;
-use num::{BigUint, Integer, One, Zero};
+use num::{BigUint, Integer, Zero};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField};
 use plonky2::hash::hash_types::RichField;
@@ -353,25 +353,22 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     fn inv_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF> {
         let num_limbs = x.value.num_limbs();
         let inv_biguint = self.add_virtual_biguint_target(num_limbs);
-        let inv = self.constant_nonnative(FF::MONTGOMERY_INV);
-        let div = self.add_virtual_biguint_target(num_limbs + 2 * inv.value.num_limbs());
+        let one = self.constant_nonnative(FF::ONE);
 
         self.add_simple_generator(NonNativeInverseGenerator::<F, D, FF> {
             x: x.clone(),
             inv: inv_biguint.clone(),
-            div: div.clone(),
             _phantom: PhantomData,
         });
 
-        let product = self.mul_biguint(&x.value, &inv_biguint);
-        let product = self.mul_biguint(&product, &inv.value);
-        let product = self.mul_biguint(&product, &inv.value);
-
-        let modulus = self.constant_biguint(&FF::order());
-        let mod_times_div = self.mul_biguint(&modulus, &div);
-        let one = self.constant_biguint(&BigUint::one());
-        let expected_product = self.add_biguint(&mod_times_div, &one);
-        self.connect_biguint(&product, &expected_product);
+        let product = self.mul_nonnative(
+            &x,
+            &NonNativeTarget {
+                value: inv_biguint.clone(),
+                _phantom: PhantomData,
+            },
+        );
+        self.connect_nonnative(&product, &one);
 
         NonNativeTarget::<FF> {
             value: inv_biguint,
@@ -617,7 +614,6 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 struct NonNativeInverseGenerator<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> {
     x: NonNativeTarget<FF>,
     inv: BigUintTarget,
-    div: BigUintTarget,
     _phantom: PhantomData<F>,
 }
 
@@ -631,17 +627,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         let x = FF::from_noncanonical_biguint(witness.get_biguint_target(self.x.value.clone()));
         let inv = x.inverse();
-
-        let x_biguint = x.to_canonical_biguint();
         let inv_biguint = inv.to_canonical_biguint();
-        let prod = x_biguint
-            * &inv_biguint
-            * FF::MONTGOMERY_INV.to_canonical_biguint()
-            * FF::MONTGOMERY_INV.to_canonical_biguint();
-        let modulus = FF::order();
-        let (div, _rem) = prod.div_rem(&modulus);
-
-        out_buffer.set_biguint_target(&self.div, &div);
         out_buffer.set_biguint_target(&self.inv, &inv_biguint);
     }
 }
@@ -698,11 +684,6 @@ mod tests {
 
     #[test]
     fn test_nonnative_conversion_gates() -> Result<()> {
-        // let mut builder = env_logger::Builder::from_default_env();
-        // builder.format_timestamp(None);
-        // builder.filter_level(LevelFilter::Info);
-        // builder.try_init()?;
-
         type FF = Bn128Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -715,23 +696,6 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config.clone());
 
         let x = builder.constant_nonnative(x_ff);
-        // let u32x_target = builder.constant_u32(0xffffffff);
-        // let u320_target = builder.constant_u32(0);
-        // let x = NonNativeTarget::<FF> {
-        //     value: BigUintTarget {
-        //         limbs: vec![
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u32x_target,
-        //         ],
-        //     },
-        //     _phantom: PhantomData,
-        // };
 
         let gate = U32ToU28Gate::<F, D>::new_from_config(&config);
         let (row, copy) = builder.find_slot(gate, &[], &[]);
@@ -804,11 +768,6 @@ mod tests {
 
     #[test]
     fn test_nonnative_mul() -> Result<()> {
-        // let mut builder = env_logger::Builder::from_default_env();
-        // builder.format_timestamp(None);
-        // builder.filter_level(LevelFilter::Info);
-        // builder.try_init()?;
-
         type FF = Bn128Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -823,39 +782,6 @@ mod tests {
 
         let x = builder.constant_nonnative(x_ff);
         let y = builder.constant_nonnative(y_ff);
-        // let u322_target = builder.constant_u32(1);
-        // let u323_target = builder.constant_u32(2);
-        // let u320_target = builder.constant_u32(0);
-        // let x = NonNativeTarget::<FF> {
-        //     value: BigUintTarget {
-        //         limbs: vec![
-        //             u322_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //         ],
-        //     },
-        //     _phantom: PhantomData,
-        // };
-        // let y = NonNativeTarget::<FF> {
-        //     value: BigUintTarget {
-        //         limbs: vec![
-        //             u323_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //             u320_target,
-        //         ],
-        //     },
-        //     _phantom: PhantomData,
-        // };
         let product_expected = builder.constant_nonnative(product_ff);
         let product = builder.mul_nonnative(&x, &y);
 
