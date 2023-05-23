@@ -1,5 +1,5 @@
 use core::marker::PhantomData;
-use num::{BigUint, FromPrimitive, ToPrimitive, Zero};
+use num::{BigUint, FromPrimitive, Zero};
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
@@ -69,9 +69,9 @@ impl<F: RichField + Extendable<D>, const D: usize> U28ToU32Gate<F, D> {
         2
     }
     // We have 16 2-bit limbs for a 32-bit limb.
-    pub fn num_limbs() -> usize {
-        32 / Self::limb_bits()
-    }
+    // pub fn num_limbs() -> usize {
+    //     32 / Self::limb_bits()
+    // }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U28ToU32Gate<F, D> {

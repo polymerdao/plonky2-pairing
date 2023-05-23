@@ -804,7 +804,6 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2_u32::gadgets::arithmetic_u32::CircuitBuilderU32;
     use std::marker::PhantomData;
 
     #[test]
@@ -841,10 +840,10 @@ mod tests {
 
     #[test]
     fn test_nonnative_conversion_gates() -> Result<()> {
-        let mut builder = env_logger::Builder::from_default_env();
-        builder.format_timestamp(None);
-        builder.filter_level(LevelFilter::Info);
-        builder.try_init()?;
+        // let mut builder = env_logger::Builder::from_default_env();
+        // builder.format_timestamp(None);
+        // builder.filter_level(LevelFilter::Info);
+        // builder.try_init()?;
 
         type FF = Bn128Base;
         const D: usize = 2;
@@ -987,60 +986,59 @@ mod tests {
 
     #[test]
     fn test_nonnative_mul() -> Result<()> {
-        let mut builder = env_logger::Builder::from_default_env();
-        builder.format_timestamp(None);
-        builder.filter_level(LevelFilter::Info);
-        builder.try_init()?;
+        // let mut builder = env_logger::Builder::from_default_env();
+        // builder.format_timestamp(None);
+        // builder.filter_level(LevelFilter::Info);
+        // builder.try_init()?;
 
         type FF = Bn128Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        // TODO: fix a bug x_ff = 2 and y_ff = 2
-        let x_ff = FF::rand();
-        let y_ff = FF::rand();
+        let x_ff = FF::rand(); // FF::from_canonical_u32(1);
+        let y_ff = FF::rand(); // FF::from_canonical_u32(2);
         let product_ff = x_ff * y_ff;
 
         let config = CircuitConfig::pairing_config();
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        //let x = builder.constant_nonnative(x_ff);
-        //let y = builder.constant_nonnative(y_ff);
-        let u322_target = builder.constant_u32(0x1);
-        let u323_target = builder.constant_u32(0x1);
-        let u320_target = builder.constant_u32(0);
-        let x = NonNativeTarget::<FF> {
-            value: BigUintTarget {
-                limbs: vec![
-                    u322_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                ],
-            },
-            _phantom: PhantomData,
-        };
-        let y = NonNativeTarget::<FF> {
-            value: BigUintTarget {
-                limbs: vec![
-                    u323_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                    u320_target,
-                ],
-            },
-            _phantom: PhantomData,
-        };
-        let product_expected = builder.constant_nonnative(Bn128Base::MONTGOMERY_INV);
+        let x = builder.constant_nonnative(x_ff);
+        let y = builder.constant_nonnative(y_ff);
+        // let u322_target = builder.constant_u32(1);
+        // let u323_target = builder.constant_u32(2);
+        // let u320_target = builder.constant_u32(0);
+        // let x = NonNativeTarget::<FF> {
+        //     value: BigUintTarget {
+        //         limbs: vec![
+        //             u322_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //         ],
+        //     },
+        //     _phantom: PhantomData,
+        // };
+        // let y = NonNativeTarget::<FF> {
+        //     value: BigUintTarget {
+        //         limbs: vec![
+        //             u323_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //             u320_target,
+        //         ],
+        //     },
+        //     _phantom: PhantomData,
+        // };
+        let product_expected = builder.constant_nonnative(product_ff);
         let product = builder.mul_nonnative(&x, &y);
 
         //let product_expected = builder.constant_nonnative(product_ff);

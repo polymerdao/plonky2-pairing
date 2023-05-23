@@ -68,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
     pub fn wire_ith_quotient(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 10);
-        30 * self.num_ops + 304 * i
+        30 * self.num_ops + 304 * i + j
     }
     pub fn wire_ith_output_jth_limb28_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
@@ -89,23 +89,23 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
         debug_assert!(j != 9 || k < 2);
         30 * self.num_ops + 304 * i + 138 + 14 * j + k
     }
-    pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
-        debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        debug_assert!(k < 16);
-        30 * self.num_ops + 304 * i + 10 + 16 * j + k
-    }
-    pub fn wire_ith_quotient_jth_limb32_kth_limb2_bit(
-        &self,
-        i: usize,
-        j: usize,
-        k: usize,
-    ) -> usize {
-        debug_assert!(i < self.num_ops);
-        debug_assert!(j < 8);
-        debug_assert!(k < 16);
-        30 * self.num_ops + 304 * i + 138 + 16 * j + k
-    }
+    // pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
+    //     debug_assert!(i < self.num_ops);
+    //     debug_assert!(j < 8);
+    //     debug_assert!(k < 16);
+    //     30 * self.num_ops + 304 * i + 10 + 16 * j + k
+    // }
+    // pub fn wire_ith_quotient_jth_limb32_kth_limb2_bit(
+    //     &self,
+    //     i: usize,
+    //     j: usize,
+    //     k: usize,
+    // ) -> usize {
+    //     debug_assert!(i < self.num_ops);
+    //     debug_assert!(j < 8);
+    //     debug_assert!(k < 16);
+    //     30 * self.num_ops + 304 * i + 138 + 16 * j + k
+    // }
     pub fn wire_ith_carry_left(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 19);
@@ -435,9 +435,16 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             };
         }
 
+        // dbg!(input_x_biguint.clone().to_u32_digits());
+        // dbg!(input_y_biguint.clone().to_u32_digits());
+
         let result_biguint = input_x_biguint * input_y_biguint;
         let output_biguint = result_biguint.clone() % BigUint::from_slice(&NONNATIVE_BASE);
         let quotient_biguint = result_biguint.clone() / BigUint::from_slice(&NONNATIVE_BASE);
+
+        // dbg!(result_biguint.clone().to_u32_digits());
+        // dbg!(output_biguint.clone().to_u32_digits());
+        // dbg!(quotient_biguint.clone().to_u32_digits());
 
         let mut output_u32s = vec![0u32; 10];
         let mut quotient_u32s = vec![0u32; 10];
@@ -461,6 +468,9 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
                 quotient_result.clone(),
             );
         }
+
+        // dbg!(output_u32s.clone());
+        // dbg!(quotient_u32s.clone());
 
         for j in 0..10 {
             let num_limbs = if j == 9 { 2 } else { 14 };
