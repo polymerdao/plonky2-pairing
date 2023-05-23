@@ -68,14 +68,14 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
     pub fn wire_ith_quotient(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 10);
-        30 * self.num_ops + 285 * i
+        30 * self.num_ops + 304 * i
     }
     pub fn wire_ith_output_jth_limb28_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 10);
         debug_assert!(k < 14);
         debug_assert!(j != 9 || k < 2);
-        30 * self.num_ops + 285 * i + 10 + 14 * j + k
+        30 * self.num_ops + 304 * i + 10 + 14 * j + k
     }
     pub fn wire_ith_quotient_jth_limb28_kth_limb2_bit(
         &self,
@@ -87,13 +87,13 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
         debug_assert!(j < 10);
         debug_assert!(k < 14);
         debug_assert!(j != 9 || k < 2);
-        30 * self.num_ops + 285 * i + 138 + 14 * j + k
+        30 * self.num_ops + 304 * i + 138 + 14 * j + k
     }
     pub fn wire_ith_output_jth_limb32_kth_limb2_bit(&self, i: usize, j: usize, k: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 8);
         debug_assert!(k < 16);
-        30 * self.num_ops + 285 * i + 10 + 16 * j + k
+        30 * self.num_ops + 304 * i + 10 + 16 * j + k
     }
     pub fn wire_ith_quotient_jth_limb32_kth_limb2_bit(
         &self,
@@ -104,12 +104,17 @@ impl<F: RichField + Extendable<D>, const D: usize> NonnativeMulGate<F, D> {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 8);
         debug_assert!(k < 16);
-        30 * self.num_ops + 285 * i + 138 + 16 * j + k
+        30 * self.num_ops + 304 * i + 138 + 16 * j + k
     }
-    pub fn wire_ith_carry_diff(&self, i: usize, j: usize) -> usize {
+    pub fn wire_ith_carry_left(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < 19);
-        30 * self.num_ops + 285 * i + 138 + 128 + j
+        30 * self.num_ops + 304 * i + 138 + 128 + j
+    }
+    pub fn wire_ith_carry_right(&self, i: usize, j: usize) -> usize {
+        debug_assert!(i < self.num_ops);
+        debug_assert!(j < 19);
+        30 * self.num_ops + 304 * i + 138 + 128 + 19 + j
     }
 
     pub fn limb_bits() -> usize {
@@ -140,7 +145,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
             let mut input_y = vec![F::Extension::ZERO; 10];
             let mut output_result = vec![F::Extension::ZERO; 10];
             let mut quotient = vec![F::Extension::ZERO; 10];
-            let mut carry_diff = vec![F::Extension::ZERO; 19];
+            let mut carry_left = vec![F::Extension::ZERO; 19];
+            let mut carry_right = vec![F::Extension::ZERO; 19];
 
             for j in 0..10 {
                 input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
@@ -149,7 +155,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                 quotient[j] = vars.local_wires[self.wire_ith_quotient(i, j)];
             }
             for j in 0..19 {
-                carry_diff[j] = vars.local_wires[self.wire_ith_carry_diff(i, j)];
+                carry_left[j] = vars.local_wires[self.wire_ith_carry_left(i, j)];
+                carry_right[j] = vars.local_wires[self.wire_ith_carry_right(i, j)];
             }
 
             // Range-check output_result and quotient to be at most 28 bits each limb.
@@ -186,7 +193,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                 constraints.push(combined_limbs - quotient[j]);
             }
 
-            let mut last_carry_diff = F::Extension::ZERO;
+            let mut last_carry_left = F::Extension::ZERO;
+            let mut last_carry_right = F::Extension::ZERO;
             let base = F::Extension::from_canonical_u32(1 << 28);
             // For each limb, checks input_x * input_y + last_carry_left ===
             // output_result + quotient * NONNATIVE_BASE + last_carry_right.
@@ -209,8 +217,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                     right
                 };
 
-                constraints.push(left - right - last_carry_diff + base * carry_diff[j]);
-                last_carry_diff = carry_diff[j];
+                constraints.push(
+                    left + last_carry_left
+                        - carry_left[j] * base.clone()
+                        - (right + last_carry_right - carry_right[j] * base.clone()),
+                );
+
+                last_carry_left = carry_left[j];
+                last_carry_right = carry_right[j];
             }
         }
 
@@ -255,7 +269,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
     }
 
     fn num_wires(&self) -> usize {
-        296 + 19
+        296 + 38
     }
 
     fn num_constants(&self) -> usize {
@@ -284,7 +298,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
             let mut input_y = vec![P::ZEROS; 10];
             let mut output_result = vec![P::ZEROS; 10];
             let mut quotient = vec![P::ZEROS; 10];
-            let mut carry_diff = vec![P::ZEROS; 19];
+            let mut carry_left = vec![P::ZEROS; 19];
+            let mut carry_right = vec![P::ZEROS; 19];
 
             for j in 0..10 {
                 input_x[j] = vars.local_wires[self.wire_ith_input_x(i, j)];
@@ -293,7 +308,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 quotient[j] = vars.local_wires[self.wire_ith_quotient(i, j)];
             }
             for j in 0..19 {
-                carry_diff[j] = vars.local_wires[self.wire_ith_carry_diff(i, j)];
+                carry_left[j] = vars.local_wires[self.wire_ith_carry_left(i, j)];
+                carry_right[j] = vars.local_wires[self.wire_ith_carry_right(i, j)];
             }
 
             // Range-check output_result and quotient to be at most 28 bits each limb.
@@ -330,7 +346,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 yield_constr.one(combined_limbs - quotient[j]);
             }
 
-            let mut last_carry_diff = P::ZEROS;
+            let mut last_carry_left = P::ZEROS;
+            let mut last_carry_right = P::ZEROS;
             let base = F::from_canonical_u32(1 << 28);
             // For each limb, checks input_x * input_y + last_carry_left ===
             // output_result + quotient * NONNATIVE_BASE + last_carry_right.
@@ -353,8 +370,14 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                     right
                 };
 
-                yield_constr.one(left - right - last_carry_diff + carry_diff[j] * base.clone());
-                last_carry_diff = carry_diff[j];
+                yield_constr.one(
+                    left + last_carry_left
+                        - carry_left[j] * base.clone()
+                        - (right + last_carry_right - carry_right[j] * base.clone()),
+                );
+
+                last_carry_left = carry_left[j];
+                last_carry_right = carry_right[j];
             }
         }
     }
@@ -499,11 +522,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             let carry_left = left / base;
             let carry_right = right / base;
 
-            let wire = local_wire(self.gate.wire_ith_carry_diff(self.i, j));
-            out_buffer.set_wire(
-                wire,
-                F::from_canonical_u64((carry_left - carry_right) as u64),
-            );
+            let wire = local_wire(self.gate.wire_ith_carry_left(self.i, j));
+            out_buffer.set_wire(wire, F::from_canonical_u64(carry_left as u64));
+            let wire = local_wire(self.gate.wire_ith_carry_right(self.i, j));
+            out_buffer.set_wire(wire, F::from_canonical_u64(carry_right as u64));
 
             last_carry_left = carry_left;
             last_carry_right = carry_right;
