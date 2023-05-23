@@ -186,14 +186,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                 constraints.push(combined_limbs - quotient[j]);
             }
 
-            let mut last_carry_left = F::Extension::ZERO;
-            let mut last_carry_right = F::Extension::ZERO;
+            let mut last_carry_diff = F::Extension::ZERO;
             let base = F::Extension::from_canonical_u32(1 << 28);
             // For each limb, checks input_x * input_y + last_carry_left ===
             // output_result + quotient * NONNATIVE_BASE + last_carry_right.
             for j in 0..19 {
-                let mut left = last_carry_left;
-                let mut right = last_carry_right;
+                let mut left = F::Extension::ZERO;
+                let mut right = F::Extension::ZERO;
 
                 let start_index = if j < 10 { 0 } else { j - 9 };
                 let end_index = if j < 10 { j } else { 9 };
@@ -210,7 +209,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for NonnativeMulGa
                     right
                 };
 
-                constraints.push(left - right + base * carry_diff[j]);
+                constraints.push(left - right - last_carry_diff + base * carry_diff[j]);
+                last_carry_diff = carry_diff[j];
             }
         }
 
@@ -330,14 +330,13 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 yield_constr.one(combined_limbs - quotient[j]);
             }
 
-            let mut last_carry_left = P::ZEROS;
-            let mut last_carry_right = P::ZEROS;
+            let mut last_carry_diff = P::ZEROS;
             let base = F::from_canonical_u32(1 << 28);
             // For each limb, checks input_x * input_y + last_carry_left ===
             // output_result + quotient * NONNATIVE_BASE + last_carry_right.
             for j in 0..19 {
-                let mut left = last_carry_left;
-                let mut right = last_carry_right;
+                let mut left = P::ZEROS;
+                let mut right = P::ZEROS;
 
                 let start_index = if j < 10 { 0 } else { j - 9 };
                 let end_index = if j < 10 { j } else { 9 };
@@ -354,7 +353,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                     right
                 };
 
-                yield_constr.one(left - right + carry_diff[j] * base.clone());
+                yield_constr.one(left - right - last_carry_diff + carry_diff[j] * base.clone());
+                last_carry_diff = carry_diff[j];
             }
         }
     }
@@ -504,6 +504,9 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
                 wire,
                 F::from_canonical_u64((carry_left - carry_right) as u64),
             );
+
+            last_carry_left = carry_left;
+            last_carry_right = carry_right;
         }
     }
 }
