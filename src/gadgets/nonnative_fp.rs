@@ -85,11 +85,6 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         y: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF>;
 
-    fn add_many_nonnative<FF: PrimeField>(
-        &mut self,
-        to_add: &[NonNativeTarget<FF>],
-    ) -> NonNativeTarget<FF>;
-
     // Subtract two `NonNativeTarget`s.
     fn sub_nonnative<FF: PrimeField>(
         &mut self,
@@ -101,11 +96,6 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         &mut self,
         a: &NonNativeTarget<FF>,
         b: &NonNativeTarget<FF>,
-    ) -> NonNativeTarget<FF>;
-
-    fn mul_many_nonnative<FF: PrimeField>(
-        &mut self,
-        to_mul: &[NonNativeTarget<FF>],
     ) -> NonNativeTarget<FF>;
 
     fn neg_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF>;
@@ -204,31 +194,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         a: &NonNativeTarget<FF>,
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
-        // let sum = self.add_virtual_nonnative_target::<FF>();
-        // let overflow = self.add_virtual_bool_target_unsafe();
-        //
-        // self.add_simple_generator(NonNativeAdditionGenerator::<F, D, FF> {
-        //     a: a.clone(),
-        //     b: b.clone(),
-        //     sum: sum.clone(),
-        //     overflow,
-        //     _phantom: PhantomData,
-        // });
-        //
-        // let sum_expected = self.add_biguint(&a.value, &b.value);
-        //
-        // let modulus = self.constant_biguint(&FF::order());
-        // let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
-        // let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
-        // self.connect_biguint(&sum_expected, &sum_actual);
-        //
-        // // Range-check result.
-        // // TODO: can potentially leave unreduced until necessary (e.g. when connecting values).
-        // let cmp = self.cmp_biguint(&sum.value, &modulus);
-        // let one = self.one();
-        // self.connect(cmp.target, one);
-        // sum
-
         let gate = NonnativeAddGate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
 
@@ -276,49 +241,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         self.add_nonnative(&maybe_x, &maybe_y)
     }
 
-    fn add_many_nonnative<FF: PrimeField>(
-        &mut self,
-        to_add: &[NonNativeTarget<FF>],
-    ) -> NonNativeTarget<FF> {
-        if to_add.len() == 1 {
-            return to_add[0].clone();
-        }
-
-        let sum = self.add_virtual_nonnative_target::<FF>();
-        let overflow = self.add_virtual_u32_target();
-        let summands = to_add.to_vec();
-
-        self.add_simple_generator(NonNativeMultipleAddsGenerator::<F, D, FF> {
-            summands: summands.clone(),
-            sum: sum.clone(),
-            overflow,
-            _phantom: PhantomData,
-        });
-
-        range_check_u32_circuit(self, sum.value.limbs.clone());
-        range_check_u32_circuit(self, vec![overflow]);
-
-        let sum_expected = summands
-            .iter()
-            .fold(self.zero_biguint(), |a, b| self.add_biguint(&a, &b.value));
-
-        let modulus = self.constant_biguint(&FF::order());
-        let overflow_biguint = BigUintTarget {
-            limbs: vec![overflow],
-        };
-        let mod_times_overflow = self.mul_biguint(&modulus, &overflow_biguint);
-        let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
-        self.connect_biguint(&sum_expected, &sum_actual);
-
-        // Range-check result.
-        // TODO: can potentially leave unreduced until necessary (e.g. when connecting values).
-        let cmp = self.cmp_biguint(&sum.value, &modulus);
-        let one = self.one();
-        self.connect(cmp.target, one);
-
-        sum
-    }
-
     // Subtract two `NonNativeTarget`s.
     fn sub_nonnative<FF: PrimeField>(
         &mut self,
@@ -353,55 +275,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         a: &NonNativeTarget<FF>,
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
-        // let prod0 = self.add_virtual_nonnative_target::<FF>();
-        // let modulus = self.constant_biguint(&FF::order());
-        // let overflow = self.add_virtual_biguint_target(
-        //     a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
-        // );
-        //
-        // self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
-        //     a: a.clone(),
-        //     b: b.clone(),
-        //     prod: prod0.clone(),
-        //     overflow: overflow.clone(),
-        //     _phantom: PhantomData,
-        // });
-        //
-        // range_check_u32_circuit(self, prod0.value.limbs.clone());
-        // range_check_u32_circuit(self, overflow.limbs.clone());
-        //
-        // let prod_expected = self.mul_biguint(&a.value, &b.value);
-        //
-        // let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
-        // let prod_actual = self.add_biguint(&prod0.value, &mod_times_overflow);
-        // self.connect_biguint(&prod_expected, &prod_actual);
-        //
-        // let prod1 = self.add_virtual_nonnative_target::<FF>();
-        // let modulus = self.constant_biguint(&FF::order());
-        // let inv = self.constant_nonnative(FF::MONTGOMERY_INV);
-        // let overflow = self.add_virtual_biguint_target(
-        //     prod0.value.num_limbs() + inv.value.num_limbs() - modulus.num_limbs(),
-        // );
-        //
-        // self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
-        //     a: prod0.clone(),
-        //     b: inv.clone(),
-        //     prod: prod1.clone(),
-        //     overflow: overflow.clone(),
-        //     _phantom: PhantomData,
-        // });
-        //
-        // range_check_u32_circuit(self, prod1.value.limbs.clone());
-        // range_check_u32_circuit(self, overflow.limbs.clone());
-        //
-        // let prod_expected = self.mul_biguint(&prod0.value, &inv.value);
-        //
-        // let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
-        // let prod_actual = self.add_biguint(&prod1.value, &mod_times_overflow);
-        // self.connect_biguint(&prod_expected, &prod_actual);
-        //
-        // prod1
-
         let gate = U32ToU28Gate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
         for i in 0..8 {
@@ -468,21 +341,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
             value: BigUintTarget { limbs: targets },
             _phantom: PhantomData,
         }
-    }
-
-    fn mul_many_nonnative<FF: PrimeField>(
-        &mut self,
-        to_mul: &[NonNativeTarget<FF>],
-    ) -> NonNativeTarget<FF> {
-        if to_mul.len() == 1 {
-            return to_mul[0].clone();
-        }
-
-        let mut accumulator = self.mul_nonnative(&to_mul[0], &to_mul[1]);
-        for t in to_mul.iter().skip(2) {
-            accumulator = self.mul_nonnative(&accumulator, t);
-        }
-        accumulator
     }
 
     fn neg_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF> {
@@ -908,46 +766,6 @@ mod tests {
             _phantom: PhantomData,
         };
         builder.connect_nonnative(&x, &new_x);
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof)
-    }
-
-    #[test]
-    fn test_nonnative_many_adds() -> Result<()> {
-        type FF = Bn128Base;
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let a_ff = FF::rand();
-        let b_ff = FF::rand();
-        let c_ff = FF::rand();
-        let d_ff = FF::rand();
-        let e_ff = FF::rand();
-        let f_ff = FF::rand();
-        let g_ff = FF::rand();
-        let h_ff = FF::rand();
-        let sum_ff = a_ff + b_ff + c_ff + d_ff + e_ff + f_ff + g_ff + h_ff;
-
-        let config = CircuitConfig::pairing_config();
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let a = builder.constant_nonnative(a_ff);
-        let b = builder.constant_nonnative(b_ff);
-        let c = builder.constant_nonnative(c_ff);
-        let d = builder.constant_nonnative(d_ff);
-        let e = builder.constant_nonnative(e_ff);
-        let f = builder.constant_nonnative(f_ff);
-        let g = builder.constant_nonnative(g_ff);
-        let h = builder.constant_nonnative(h_ff);
-        let all = [a, b, c, d, e, f, g, h];
-        let sum = builder.add_many_nonnative(&all);
-
-        let sum_expected = builder.constant_nonnative(sum_ff);
-        builder.connect_nonnative(&sum, &sum_expected);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
