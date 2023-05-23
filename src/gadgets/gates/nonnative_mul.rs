@@ -439,10 +439,14 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
         let output_biguint = result_biguint.clone() % BigUint::from_slice(&NONNATIVE_BASE);
         let quotient_biguint = result_biguint.clone() / BigUint::from_slice(&NONNATIVE_BASE);
 
+        let mut output_u32s = vec![0u32; 10];
+        let mut quotient_u32s = vec![0u32; 10];
+
         for j in 0..10 {
             let result_limb: BigUint =
                 (output_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
-            let output_result = F::from_canonical_u32(result_limb.to_u32().unwrap());
+            output_u32s[j] = result_limb.to_u32().unwrap();
+            let output_result = F::from_canonical_u32(output_u32s[j]);
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_output_result(self.i, j)),
                 output_result.clone(),
@@ -450,17 +454,16 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
 
             let quotient_limb: BigUint =
                 (quotient_biguint.clone() >> (j * 28)) & BigUint::from_u32(0xfffffff).unwrap();
-            let quotient_result = F::from_canonical_u32(quotient_limb.to_u32().unwrap());
+            quotient_u32s[j] = quotient_limb.to_u32().unwrap();
+            let quotient_result = F::from_canonical_u32(quotient_u32s[j]);
             out_buffer.set_wire(
                 local_wire(self.gate.wire_ith_quotient(self.i, j)),
                 quotient_result.clone(),
             );
         }
 
-        let output_u32s = output_biguint.to_u32_digits();
-        let quotient_u32s = quotient_biguint.to_u32_digits();
-        for j in 0..8 {
-            let num_limbs = 16;
+        for j in 0..10 {
+            let num_limbs = if j == 9 { 2 } else { 14 };
             let limb_base = 1 << 2;
 
             let output_limbs: Vec<_> = (0..num_limbs)
@@ -473,7 +476,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             for k in 0..num_limbs {
                 let wire = local_wire(
                     self.gate
-                        .wire_ith_output_jth_limb32_kth_limb2_bit(self.i, j, k),
+                        .wire_ith_output_jth_limb28_kth_limb2_bit(self.i, j, k),
                 );
                 out_buffer.set_wire(wire, output_limbs[k].clone());
             }
@@ -488,7 +491,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
             for k in 0..num_limbs {
                 let wire = local_wire(
                     self.gate
-                        .wire_ith_quotient_jth_limb32_kth_limb2_bit(self.i, j, k),
+                        .wire_ith_quotient_jth_limb28_kth_limb2_bit(self.i, j, k),
                 );
                 out_buffer.set_wire(wire, quotient_limbs[k].clone());
             }

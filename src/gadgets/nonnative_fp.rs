@@ -20,6 +20,16 @@ use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use plonky2_u32::gadgets::range_check::range_check_u32_circuit;
 use plonky2_u32::witness::GeneratedValuesU32;
 
+// TODO:refactor
+// 0xed84884a014afa37,
+// 0xeb2022850278edf8,
+// 0xcf63e9cfb74492d9,
+// 0x2e67157159e5c639,
+const BN128_BASE_INV: [u32; 10] = [
+    0x14afa37, 0x84884a0, 0x8edf8ed, 0x2285027, 0x2d9eb20, 0xcfb7449, 0x9cf63e9, 0x59e5c63,
+    0xe671571, 0x2,
+];
+
 #[derive(Clone, Debug)]
 pub struct NonNativeTarget<FF: Field> {
     pub value: BigUintTarget,
@@ -417,7 +427,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
             b_targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
         }
 
-        let mut targets = Vec::new();
+        let mut xy = Vec::new();
         let gate = NonnativeMulGate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
         for i in 0..10 {
@@ -429,13 +439,23 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
                 Target::wire(row, gate.wire_ith_input_y(copy, i)),
                 b_targets[i],
             );
-            targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
+            xy.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
+        }
+
+        let mut res = Vec::new();
+        let gate = NonnativeMulGate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+        for i in 0..10 {
+            self.connect(Target::wire(row, gate.wire_ith_input_x(copy, i)), xy[i]);
+            let inv = self.constant(F::from_canonical_u32(BN128_BASE_INV[i]));
+            self.connect(Target::wire(row, gate.wire_ith_input_y(copy, i)), inv);
+            res.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
         }
 
         let gate = U28ToU32Gate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
         for i in 0..10 {
-            self.connect(Target::wire(row, gate.wire_ith_input(copy, i)), targets[i]);
+            self.connect(Target::wire(row, gate.wire_ith_input(copy, i)), res[i]);
         }
         let mut targets = Vec::new();
         for i in 0..8 {
@@ -967,6 +987,11 @@ mod tests {
 
     #[test]
     fn test_nonnative_mul() -> Result<()> {
+        let mut builder = env_logger::Builder::from_default_env();
+        builder.format_timestamp(None);
+        builder.filter_level(LevelFilter::Info);
+        builder.try_init()?;
+
         type FF = Bn128Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -980,11 +1005,45 @@ mod tests {
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_nonnative(x_ff);
-        let y = builder.constant_nonnative(y_ff);
+        //let x = builder.constant_nonnative(x_ff);
+        //let y = builder.constant_nonnative(y_ff);
+        let u322_target = builder.constant_u32(0x1);
+        let u323_target = builder.constant_u32(0x1);
+        let u320_target = builder.constant_u32(0);
+        let x = NonNativeTarget::<FF> {
+            value: BigUintTarget {
+                limbs: vec![
+                    u322_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                ],
+            },
+            _phantom: PhantomData,
+        };
+        let y = NonNativeTarget::<FF> {
+            value: BigUintTarget {
+                limbs: vec![
+                    u323_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                    u320_target,
+                ],
+            },
+            _phantom: PhantomData,
+        };
+        let product_expected = builder.constant_nonnative(Bn128Base::MONTGOMERY_INV);
         let product = builder.mul_nonnative(&x, &y);
 
-        let product_expected = builder.constant_nonnative(product_ff);
+        //let product_expected = builder.constant_nonnative(product_ff);
         builder.connect_nonnative(&product, &product_expected);
 
         let data = builder.build::<C>();
