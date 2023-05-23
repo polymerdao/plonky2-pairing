@@ -4,6 +4,9 @@ use crate::gadgets::biguint::{
     BigUintTarget, CircuitBuilderBiguint, GeneratedValuesBigUint, WitnessBigUint,
 };
 use crate::gadgets::gates::nonnative_add::NonnativeAddGate;
+use crate::gadgets::gates::nonnative_mul::NonnativeMulGate;
+use crate::gadgets::gates::u28_to_u32::U28ToU32Gate;
+use crate::gadgets::gates::u32_to_u28::U32ToU28Gate;
 use num::{BigUint, Integer, One, Zero};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField};
@@ -335,60 +338,116 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         diff
     }
 
-    // TODO: optimize it
     fn mul_nonnative<FF: PrimeField>(
         &mut self,
         a: &NonNativeTarget<FF>,
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
-        let prod0 = self.add_virtual_nonnative_target::<FF>();
-        let modulus = self.constant_biguint(&FF::order());
-        let overflow = self.add_virtual_biguint_target(
-            a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
-        );
+        // let prod0 = self.add_virtual_nonnative_target::<FF>();
+        // let modulus = self.constant_biguint(&FF::order());
+        // let overflow = self.add_virtual_biguint_target(
+        //     a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
+        // );
+        //
+        // self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
+        //     a: a.clone(),
+        //     b: b.clone(),
+        //     prod: prod0.clone(),
+        //     overflow: overflow.clone(),
+        //     _phantom: PhantomData,
+        // });
+        //
+        // range_check_u32_circuit(self, prod0.value.limbs.clone());
+        // range_check_u32_circuit(self, overflow.limbs.clone());
+        //
+        // let prod_expected = self.mul_biguint(&a.value, &b.value);
+        //
+        // let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
+        // let prod_actual = self.add_biguint(&prod0.value, &mod_times_overflow);
+        // self.connect_biguint(&prod_expected, &prod_actual);
+        //
+        // let prod1 = self.add_virtual_nonnative_target::<FF>();
+        // let modulus = self.constant_biguint(&FF::order());
+        // let inv = self.constant_nonnative(FF::MONTGOMERY_INV);
+        // let overflow = self.add_virtual_biguint_target(
+        //     prod0.value.num_limbs() + inv.value.num_limbs() - modulus.num_limbs(),
+        // );
+        //
+        // self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
+        //     a: prod0.clone(),
+        //     b: inv.clone(),
+        //     prod: prod1.clone(),
+        //     overflow: overflow.clone(),
+        //     _phantom: PhantomData,
+        // });
+        //
+        // range_check_u32_circuit(self, prod1.value.limbs.clone());
+        // range_check_u32_circuit(self, overflow.limbs.clone());
+        //
+        // let prod_expected = self.mul_biguint(&prod0.value, &inv.value);
+        //
+        // let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
+        // let prod_actual = self.add_biguint(&prod1.value, &mod_times_overflow);
+        // self.connect_biguint(&prod_expected, &prod_actual);
+        //
+        // prod1
 
-        self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
-            a: a.clone(),
-            b: b.clone(),
-            prod: prod0.clone(),
-            overflow: overflow.clone(),
+        let gate = U32ToU28Gate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+        for i in 0..8 {
+            self.connect(
+                Target::wire(row, gate.wire_ith_input(copy, i)),
+                a.value.limbs[i].0,
+            );
+        }
+        let mut a_targets = Vec::new();
+        for i in 0..10 {
+            a_targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
+        }
+        let gate = U32ToU28Gate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+        for i in 0..8 {
+            self.connect(
+                Target::wire(row, gate.wire_ith_input(copy, i)),
+                b.value.limbs[i].0,
+            );
+        }
+        let mut b_targets = Vec::new();
+        for i in 0..10 {
+            b_targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
+        }
+
+        let mut targets = Vec::new();
+        let gate = NonnativeMulGate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+        for i in 0..10 {
+            self.connect(
+                Target::wire(row, gate.wire_ith_input_x(copy, i)),
+                a_targets[i],
+            );
+            self.connect(
+                Target::wire(row, gate.wire_ith_input_y(copy, i)),
+                b_targets[i],
+            );
+            targets.push(Target::wire(row, gate.wire_ith_output_result(copy, i)));
+        }
+
+        let gate = U28ToU32Gate::<F, D>::new_from_config(&self.config);
+        let (row, copy) = self.find_slot(gate, &[], &[]);
+        for i in 0..10 {
+            self.connect(Target::wire(row, gate.wire_ith_input(copy, i)), targets[i]);
+        }
+        let mut targets = Vec::new();
+        for i in 0..8 {
+            targets.push(U32Target {
+                0: Target::wire(row, gate.wire_ith_output_result(copy, i)),
+            });
+        }
+
+        NonNativeTarget {
+            value: BigUintTarget { limbs: targets },
             _phantom: PhantomData,
-        });
-
-        range_check_u32_circuit(self, prod0.value.limbs.clone());
-        range_check_u32_circuit(self, overflow.limbs.clone());
-
-        let prod_expected = self.mul_biguint(&a.value, &b.value);
-
-        let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
-        let prod_actual = self.add_biguint(&prod0.value, &mod_times_overflow);
-        self.connect_biguint(&prod_expected, &prod_actual);
-
-        let prod1 = self.add_virtual_nonnative_target::<FF>();
-        let modulus = self.constant_biguint(&FF::order());
-        let inv = self.constant_nonnative(FF::MONTGOMERY_INV);
-        let overflow = self.add_virtual_biguint_target(
-            prod0.value.num_limbs() + inv.value.num_limbs() - modulus.num_limbs(),
-        );
-
-        self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
-            a: prod0.clone(),
-            b: inv.clone(),
-            prod: prod1.clone(),
-            overflow: overflow.clone(),
-            _phantom: PhantomData,
-        });
-
-        range_check_u32_circuit(self, prod1.value.limbs.clone());
-        range_check_u32_circuit(self, overflow.limbs.clone());
-
-        let prod_expected = self.mul_biguint(&prod0.value, &inv.value);
-
-        let mod_times_overflow = self.mul_biguint(&modulus, &overflow);
-        let prod_actual = self.add_biguint(&prod1.value, &mod_times_overflow);
-        self.connect_biguint(&prod_expected, &prod_actual);
-
-        prod1
+        }
     }
 
     fn mul_many_nonnative<FF: PrimeField>(

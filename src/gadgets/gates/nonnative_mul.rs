@@ -392,8 +392,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
-        let mut input_x_u32s = vec![0u32; 8];
-        let mut input_y_u32s = vec![0u32; 8];
+        let mut input_x_u32s = vec![0u32; 10];
+        let mut input_y_u32s = vec![0u32; 10];
         let mut input_x_biguint = BigUint::zero();
         let mut input_y_biguint = BigUint::zero();
         for j in (0..10).rev() {
