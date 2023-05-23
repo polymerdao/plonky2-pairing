@@ -7,7 +7,7 @@ use crate::gadgets::gates::nonnative_add::NonnativeAddGate;
 use crate::gadgets::gates::nonnative_mul::NonnativeMulGate;
 use crate::gadgets::gates::u28_to_u32::U28ToU32Gate;
 use crate::gadgets::gates::u32_to_u28::U32ToU28Gate;
-use num::{BigUint, Integer, Zero};
+use num::{BigUint, Zero};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField};
 use plonky2::hash::hash_types::RichField;
@@ -18,7 +18,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::util::ceil_div_usize;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use plonky2_u32::gadgets::range_check::range_check_u32_circuit;
-use plonky2_u32::witness::GeneratedValuesU32;
 
 // TODO:refactor
 // 0xed84884a014afa37,
@@ -486,51 +485,6 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 }
 
 #[derive(Debug)]
-struct NonNativeMultipleAddsGenerator<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
-{
-    summands: Vec<NonNativeTarget<FF>>,
-    sum: NonNativeTarget<FF>,
-    overflow: U32Target,
-    _phantom: PhantomData<F>,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F>
-    for NonNativeMultipleAddsGenerator<F, D, FF>
-{
-    fn dependencies(&self) -> Vec<Target> {
-        self.summands
-            .iter()
-            .flat_map(|summand| summand.value.limbs.iter().map(|limb| limb.0))
-            .collect()
-    }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let summands: Vec<_> = self
-            .summands
-            .iter()
-            .map(|summand| {
-                FF::from_noncanonical_biguint(witness.get_biguint_target(summand.value.clone()))
-            })
-            .collect();
-        let summand_biguints: Vec<_> = summands
-            .iter()
-            .map(|summand| summand.to_canonical_biguint())
-            .collect();
-
-        let sum_biguint = summand_biguints
-            .iter()
-            .fold(BigUint::zero(), |a, b| a + b.clone());
-
-        let modulus = FF::order();
-        let (overflow_biguint, sum_reduced) = sum_biguint.div_rem(&modulus);
-        let overflow = overflow_biguint.to_u64_digits()[0] as u32;
-
-        out_buffer.set_biguint_target(&self.sum.value, &sum_reduced);
-        out_buffer.set_u32_target(self.overflow, overflow);
-    }
-}
-
-#[derive(Debug)]
 struct NonNativeSubtractionGenerator<F: RichField + Extendable<D>, const D: usize, FF: Field> {
     a: NonNativeTarget<FF>,
     b: NonNativeTarget<FF>,
@@ -568,45 +522,6 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 
         out_buffer.set_biguint_target(&self.diff.value, &diff_biguint);
         out_buffer.set_bool_target(self.overflow, overflow);
-    }
-}
-
-#[derive(Debug)]
-struct NonNativeMultiplicationGenerator<F: RichField + Extendable<D>, const D: usize, FF: Field> {
-    a: NonNativeTarget<FF>,
-    b: NonNativeTarget<FF>,
-    prod: NonNativeTarget<FF>,
-    overflow: BigUintTarget,
-    _phantom: PhantomData<F>,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F>
-    for NonNativeMultiplicationGenerator<F, D, FF>
-{
-    fn dependencies(&self) -> Vec<Target> {
-        self.a
-            .value
-            .limbs
-            .iter()
-            .cloned()
-            .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
-            .collect()
-    }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let a = FF::from_noncanonical_biguint(witness.get_biguint_target(self.a.value.clone()));
-        let b = FF::from_noncanonical_biguint(witness.get_biguint_target(self.b.value.clone()));
-        let a_biguint = a.to_canonical_biguint();
-        let b_biguint = b.to_canonical_biguint();
-
-        let prod_biguint = a_biguint * b_biguint;
-
-        let modulus = FF::order();
-        let (overflow_biguint, prod_reduced) = prod_biguint.div_rem(&modulus);
-
-        out_buffer.set_biguint_target(&self.prod.value, &prod_reduced);
-        out_buffer.set_biguint_target(&self.overflow, &overflow_biguint);
     }
 }
 
