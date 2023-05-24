@@ -330,7 +330,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F>
 
         let sum_biguint = input_x_biguint + input_y_biguint;
         let nonnative_base_biguint = BigUint::from_slice(&NONNATIVE_BASE);
-        let carry = if sum_biguint > nonnative_base_biguint {
+        let carry = if sum_biguint >= nonnative_base_biguint {
             F::ONE
         } else {
             F::ZERO

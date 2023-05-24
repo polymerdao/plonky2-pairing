@@ -247,24 +247,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
         let diff = self.add_virtual_nonnative_target::<FF>();
-        let overflow = self.add_virtual_bool_target_unsafe();
-
         self.add_simple_generator(NonNativeSubtractionGenerator::<F, D, FF> {
             a: a.clone(),
             b: b.clone(),
             diff: diff.clone(),
-            overflow,
             _phantom: PhantomData,
         });
 
         range_check_u32_circuit(self, diff.value.limbs.clone());
-        self.assert_bool(overflow);
-
-        let diff_plus_b = self.add_biguint(&diff.value, &b.value);
-        let modulus = self.constant_biguint(&FF::order());
-        let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
-        let diff_plus_b_reduced = self.sub_biguint(&diff_plus_b, &mod_times_overflow);
-        self.connect_biguint(&a.value, &diff_plus_b_reduced);
+        let diff_plus_b = self.add_nonnative(&diff, &b);
+        self.connect_biguint(&a.value, &diff_plus_b.value);
 
         diff
     }
@@ -489,7 +481,6 @@ struct NonNativeSubtractionGenerator<F: RichField + Extendable<D>, const D: usiz
     a: NonNativeTarget<FF>,
     b: NonNativeTarget<FF>,
     diff: NonNativeTarget<FF>,
-    overflow: BoolTarget,
     _phantom: PhantomData<F>,
 }
 
@@ -514,14 +505,13 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
         let b_biguint = b.to_canonical_biguint();
 
         let modulus = FF::order();
-        let (diff_biguint, overflow) = if a_biguint >= b_biguint {
-            (a_biguint - b_biguint, false)
+        let diff_biguint = if a_biguint >= b_biguint {
+            a_biguint - b_biguint
         } else {
-            (modulus + a_biguint - b_biguint, true)
+            modulus + a_biguint - b_biguint
         };
 
         out_buffer.set_biguint_target(&self.diff.value, &diff_biguint);
-        out_buffer.set_bool_target(self.overflow, overflow);
     }
 }
 
